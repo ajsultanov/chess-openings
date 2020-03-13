@@ -1,0 +1,89 @@
+body {
+	font-family: Trebuchet MS;
+	user-select: none;
+}
+
+a, a:visited {
+	text-decoration: none;
+	color: black;
+}
+
+code {
+	background: #F84;
+	margin: 0px 10px;
+	padding: 0px 5px;
+}
+
+u {
+  text-decoration: underline;
+}
+uu {
+  text-decoration: underline double;
+}
+
+header {
+	border: 1px solid darkturquoise;
+}
+
+section {
+	margin-left: 50px;
+}
+
+.eco, .move {
+	font-family: Courier Prime;
+	font-weight: normal;
+	vertical-align: middle;
+}
+
+.eco {
+	font-size: 80%;
+}
+
+.move {
+	font-size: 120%;
+}
+
+.shelf {
+	display: flex;
+	border: 1px solid black;
+}
+
+.opening {
+	min-width: 150px;
+	max-width: 250px;
+	margin-right: 20px;
+	border: 1px solid red;
+}
+
+.missing {
+	background-color: #ABC;
+	height: 100px;
+	width: 100px;
+	line-height: 100px;
+	text-align: center;
+	font-size: 75%
+}
+
+.b::after {
+	margin-left: 10px;
+	content: '---';
+	color: #333;
+	background-color: #333;
+	border: 2px solid black;
+	white-space: nowrap;
+	border-radius: 50%;
+}
+
+.w::after {
+	margin-left: 10px;
+	content: '---';
+	color: #fff;
+	background-color: #fff;
+	border: 2px solid black;
+	white-space: nowrap;
+	border-radius: 50%;
+}
+
+.board {
+	/* width: 192px; */
+}
