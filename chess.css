@@ -9,7 +9,7 @@ a, a:visited {
 }
 
 code {
-	background: #F84;
+	background: #F93;
 	margin: 0px 10px;
 	padding: 0px 5px;
 }
@@ -84,6 +84,28 @@ section {
 	border-radius: 50%;
 }
 
+.image {
+	position: relative;
+}
+
 .board {
-	/* width: 192px; */
+	position: relative;
+	top: 0;
+	left: 0;
+	z-index: 0;
+}
+
+.pieces {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 10;
+}
+
+.overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 20;
+	opacity: 0.5;
 }
