@@ -14,6 +14,21 @@ code {
 	padding: 0px 5px;
 }
 
+.contents {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+	background-color: #966;
+	padding: 5px;
+	margin-bottom: 20px;
+	border: 1px solid black;
+}
+
+.contents div {
+	background-color: #966;
+	border: 5px solid #0000;
+}
+
 u {
   text-decoration: underline;
 }
@@ -22,6 +37,7 @@ uu {
 }
 
 header {
+	margin-top: 20px;
 	padding: 0 20px;
 	background-color: #00CED120;
 	border: 1px solid darkturquoise;
@@ -51,10 +67,14 @@ section {
 }
 
 .opening {
-	min-width: 150px;
-	max-width: 250px;
+	width: 250px;
 	margin-right: 20px;
-	/* border: 1px solid red; */
+	padding: 10px;
+	border: 1px solid #f002;
+}
+
+.opening img {
+	width: 160px;
 }
 
 .missing {
