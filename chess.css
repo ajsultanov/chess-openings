@@ -77,11 +77,11 @@ header img {
 
 .open_wrap {
 	width: 350px;
-	border: 1px solid #f002;
 	display: grid;
 	grid-template-columns: 50px 300px;
 	grid-template-rows: 50px 50px 200px 50px;
-	border: 2px solid navy;
+	border: 2px solid #f002;
+	/* border: 2px solid navy; */
 }
 
 .left {
@@ -89,16 +89,17 @@ header img {
 	grid-row: 1 / 5;
 	display: flex;
 	flex-direction: column;
-	border: 2px solid springgreen;
 	align-items: center;
+	/* border: 2px solid springgreen; */
 }
 
 .right {
+	margin-left: 10px;
 	grid-column: 2 / 3;
 	grid-row: 1 / 5;
 	display: grid;
-	grid-template-rows: 50px 50px 180px 1fr;
-	border: 2px solid red;
+	grid-template-rows: 50px 35px 180px 1fr;
+	/* border: 2px solid red; */
 }
 
 .code {
@@ -131,15 +132,21 @@ header img {
 }
 
 .title {
-	border: 2px solid goldenrod;
 	margin: 0;
-	padding: 10px;
+	/* padding: 10px; */
+	align-self: center;
+	font-size: 115%;
+	/* border: 2px solid goldenrod; */
 }
 .subtitle {
-	border: 2px solid green;
+	margin: 0px;
+	/* padding: 5px 10px 5px; */
+	font-size: 100%;
+	/* border: 2px solid green; */
 }
 .image {
-	border: 2px solid cyan;
+	/* padding: 5px 10px 5px; */
+	/* border: 2px solid cyan; */
 	/* position: relative; */
 }
 .image img {
@@ -147,7 +154,9 @@ header img {
 	width: 160px;
 }
 .alg {
-	border: 2px solid pink;
+	margin: 0px;
+	font-family: Courier Prime;
+	/* border: 2px solid pink; */
 }
 
 
