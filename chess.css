@@ -77,11 +77,12 @@ header img {
 
 .open_wrap {
 	width: 350px;
+	margin-right: 20px;
 	display: grid;
 	grid-template-columns: 50px 300px;
-	grid-template-rows: 50px 50px 200px 50px;
+	/* grid-template-rows: 50px 50px 200px 50px; */
 	border: 2px solid #f002;
-	/* border: 2px solid navy; */
+	border-radius: 4px;
 }
 
 .left {
@@ -98,7 +99,7 @@ header img {
 	grid-column: 2 / 3;
 	grid-row: 1 / 5;
 	display: grid;
-	grid-template-rows: 50px 35px 180px 1fr;
+	grid-template-rows: 50px 50px 180px 1fr 1fr;
 	/* border: 2px solid red; */
 }
 
@@ -109,6 +110,7 @@ header img {
 	padding: 10px 5px 10px;
 	margin: 0px;
 	border: 2px solid black;
+	border-radius: 4px;
 }
 .swatch {
 	width: 16px;
@@ -141,6 +143,7 @@ header img {
 .subtitle {
 	margin: 0px;
 	/* padding: 5px 10px 5px; */
+	align-self: flex-start;
 	font-size: 100%;
 	/* border: 2px solid green; */
 }
@@ -153,10 +156,19 @@ header img {
 	position: absolute;
 	width: 160px;
 }
+.over {
+	opacity: 0.75;
+}
 .alg {
 	margin: 0px;
+	max-height: 100px;
 	font-family: Courier Prime;
 	/* border: 2px solid pink; */
+}
+.desc {
+	margin: 0px;
+	font-family: Tahoma;
+	font-size: 12px;
 }
 
 
