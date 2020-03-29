@@ -41,14 +41,15 @@ uu {
 }
 
 .contents {
-	/* display: flex; */
-	/* flex-wrap: wrap; */
-	/* justify-content: space-evenly; */
-	background-color: #966;
+	background-color: #C99;
 	padding: 5px;
 	margin-bottom: 20px;
 	border: 1px solid black;
 }
+.example {
+	height: 128px;
+}
+
 header {
 	margin-top: 20px;
 	padding: 0 20px;
@@ -137,7 +138,7 @@ display: flex;
 .image {
 	/* padding: 5px 10px 5px; */
 	/* border: 2px solid cyan; */
-	/* position: relative; */
+	position: relative;
 }
 .image img {
 	position: absolute;
