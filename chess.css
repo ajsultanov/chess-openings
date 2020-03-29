@@ -14,7 +14,10 @@ code {
 	padding: 0px 5px;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1 {
+	font-size: 250%;
+}
+h2, h3, h4, h5, h6 {
 	font-size: 110%;
 }
 
@@ -38,17 +41,13 @@ uu {
 }
 
 .contents {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: flex-start;
+	/* display: flex; */
+	/* flex-wrap: wrap; */
+	/* justify-content: space-evenly; */
 	background-color: #966;
 	padding: 5px;
 	margin-bottom: 20px;
 	border: 1px solid black;
-}
-.contents div {
-	background-color: #966;
-	border: 5px solid #0000;
 }
 header {
 	margin-top: 20px;
