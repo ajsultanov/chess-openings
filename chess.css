@@ -43,10 +43,10 @@ uu {
 }
 
 .contents {
-	background-color: #fcc;
+	background-color: #FF634720;
 	padding: 5px;
 	margin-bottom: 20px;
-	border: 1px solid black;
+	border: 1px solid tomato;
 }
 .example {
 	height: 128px;
@@ -73,8 +73,14 @@ header img {
 	width: 160px;
 }
 
-.shelf {
-display: flex;
+.board {
+
+}
+.pieces {
+
+}
+.overlay {
+	opacity: 0.5;
 }
 
 .open_wrap {
@@ -83,7 +89,7 @@ display: flex;
 	margin-bottom: 20px;
 	display: grid;
 	grid-template-columns: 50px 270px;
-	border: 2px solid #f002;
+	border: 2px solid #FF634720;
 	border-radius: 4px;
 }
 .left {
@@ -107,6 +113,7 @@ display: flex;
 	width: auto;
 	padding: 10px 5px 10px;
 	margin: 0px;
+	background-color: #FF82;
 	border: 2px solid black;
 	border-radius: 4px;
 }
