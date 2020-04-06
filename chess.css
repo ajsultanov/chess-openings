@@ -70,7 +70,7 @@ section {
 }
 
 header img {
-	width: 160px;
+	width: 130px;
 }
 
 .board {
@@ -157,7 +157,7 @@ header img {
 }
 .image img {
 	position: absolute;
-	height: 160px;
+	height: 172px;
 }
 .over {
 	opacity: 0.75;
@@ -170,7 +170,7 @@ header img {
 	/* border: 2px solid pink; */
 }
 .desc {
-	margin: 0px;
+	margin: 10px 0px;
 	font-family: Tahoma;
 	font-size: 12px;
 }
