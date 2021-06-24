@@ -1,0 +1,9 @@
+<svg version="1.1"
+    baseProfile="full"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 100 200"
+    preserveAspectRatio="none">
+
+    <rect width="100%" height="10%" fill="red" />
+    <path d="M 90 0 Q 95 90, 0 90" stroke="blue" stroke-width="20" fill="transparent" />
+</svg>

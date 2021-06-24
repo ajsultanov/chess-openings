@@ -7,6 +7,10 @@
 		<link rel='stylesheet' href='chess.css'>
 		<link rel='icon' type='image/png' href='img/'>
 		<link href='https://fonts.googleapis.com/css2?family=Courier+Prime' rel='stylesheet'>
+	  <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
+        integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
+        crossorigin="anonymous" defer>
+	  </script>
 	  <style media='screen'>
 	    html {
 	      background-color: #edc;
@@ -2027,12 +2031,34 @@
 			<p>Maybe you want a little information here.</p>
 		</header>
 
-		<canvas id="glCanvas">
-			ok
+		<canvas id="canvas" width="256" height="256" 
+			style="	border-top: 2px solid #999a;
+					border-right: 2px solid #333a;
+					border-bottom: 2px solid #000a;
+					border-left: 2px solid #666a;
+					margin-right: 40px;">
+			ok sorry
+		</canvas>
+		<canvas id="canvas3" width="256" height="256">
+			ok sorry again
+		</canvas>
+		<div>
+			<canvas id="canvas2" width="256" height="256">
+				just my bad
+			</canvas>
+			<button id="1" class="cx2-button" 
+				style="position: relative; display: block;"
+			>bar1</button>
+			<button id="2" class="cx2-button" 
+				style="position: relative; display: block;"
+			>bar2</button>
+
+		</div>
+		<canvas id="canvas4" width="256" height="256">
+			oops
 		</canvas>
 
 		<hr>
-
 
 		<a href='#top'>Back to Top</a>
 		<script src="chess.js"></script>
