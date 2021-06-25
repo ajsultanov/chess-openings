@@ -2,30 +2,33 @@
 function main() {
     console.log('WIJET with a J')
 
-    const color = document.querySelector("#palette")
+// BOTTOM PIPES
+    const palette = document.querySelector("#palette")
     const colorDict = ['d', 'e', 'f']
+    let colors = []
     for (let i = 0; i < 3; i++) {
-        let r = colorDict[i]
-        for (let i = 0; i < 3; i++) {
-            let g = colorDict[i]
-            for (let i = 0; i < 3; i++) {
-                let b = colorDict[i]
-                let myDiv = document.createElement('div')
-                myDiv.style.backgroundColor = `#${r}${g}${b}`
-                myDiv.style.height = '100px'
-                myDiv.style.width = '100px'
-                color.appendChild(myDiv)
+        for (let j = 0; j < 3; j++) {
+            for (let k = 0; k < 3; k++) {
+                colors.push(`#${colorDict[i]}${colorDict[j]}${colorDict[k]}`)
             }
         }
     }
+    for (let color of colors) {
+        let myDiv = document.createElement('div')
+        myDiv.style.backgroundColor = color
+        myDiv.style.height = '150px'
+        myDiv.style.width = '150px'
+        palette.appendChild(myDiv)
+    }
 
+// CANVAS
     const canvas = document.querySelector("#canvas")
     if (canvas.getContext) {
         const cx = canvas.getContext("2d")
 
-        cx.fillStyle = '#ddf'
+        cx.fillStyle = ['#ddf', '#dfd', '#fdd'][Math.round(Math.random() * 2)]
         cx.fillRect(0, 0, 800, 600)
-        cx.fillStyle = 'black'
+        cx.fillStyle = '#000'
 
         currentLetter = ''
 
@@ -33,281 +36,453 @@ function main() {
             tall:               ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'o', 'p', 'q', 'u', 'v', 'w', 'x', 'y', 'z'],
             middleConnectors:   ['b', 'c', 'd', 'f', 'h', 'i', 'k', 'l', 'n', 'q', 'r', 'u', 'x', 'y', 'z'],        
             eSpacers:           ['a', 'c', 'j', 'l', 'p', 'q', 'r', 's', 'v', 'w'],
+            // middleSpace:        ['a', 'e', 'g', 'j', 'm', 'o', 'p', 't', 'w'],
+            hbConnectors:       ['a', 'j', 'm', 'n', 'o', 'r', 't', 'y', 'z'],
             hLigatures:         ['c', 'g', 'k', 'p', 's', 't', 'w', 'z'],
             short:              ['a', 'e', 'i', 'n', 'r', 's', 't'],   
-            hbConnectors:       ['a', 'j', 'n', 'o', 'r', 't', 'y'],
+            lowerSpace:         ['c', 'k', 'q', 'u', 'v', 'w', 'x'],
             upperSpace:         ['b', 'd', 'k', 'n', 'x', 'y'],             
             iSpacers:           ['e', 'g', 'm', 'o', 't'],
             gLigatures:         ['d', 'f', 'g', 'l', 'p'],
             doubleConnectors:   ['c', 'i', 'q', 'r', 'u'],
             overBar:            ['f', 'h', 'u', 'z'],
-            upperMiddleSpace:   ['g', 'o'],  
-            spacers:            ['m', 't'],
-            extraCharacters:    ['#', '-', '\''],
+            extraCharacters:    ['.', ',', '#', '-', '=', '\'', 'Space', '*'],
+            unusedSymbols:      ['&', '(', ')', '+', '[', ']'],
         }
-
          
 
-
-        let scale = .5
+// CONFIG
+        let scale = 0.5
         let x = 0
         let y = 0
-        let feelinFiddly = false
         const history = []
+        const rawHistory = []
         const prev = i => history[history.length - i - 1]
+        let line = 1
+        let lineEnds = {}
+        const specificLength = 40
+        let feelinFiddly = false
 
 
+
+
+// UTILITY FUNCTIONS
         const historyHandler = key => {
-            if (prev(0) === 'backspace') {
+            if (prev(0) === 'Backspace') {
                 history.pop()
             }
             history.push(key)
-            // console.clear()
-            // console.log(history)
-            if (prev(0)) {
-                const hist = []
-                for (const x of [3, 2, 1, 0]) {
-                    hist.push(prev(x) || '')
+
+            const last4 = x => {
+                if (x) {
+                    const hist = []
+                    for (const x of [3, 2, 1, 0]) {
+                        hist.push(prev(x) || '')
+                    }
+                    console.log(hist.join(' '))
                 }
-                console.log(hist.join(' '))
             }
+            // last4(prev(0))
+        }
+        const newLine = () => {
+            lineEnds[line] = x
+            line++
+            x = 0
+            y = scale * (line - 1) * 240
+            history.push('newLine')
+        }
+        function keyCleaner(key) {
+            let newKey = key
+            // newKey = key.toLowerCase()
+            newKey = newKey === ' ' ? 'Space' : newKey
+            return newKey
         }
 
-        // DRAWING FUNCTIONS
-        function topBar(cx) { cx.fillRect(0, 0, 100, 20) }
-        function middleBar(cx) { cx.fillRect(0, 80, 100, 20) }
-        function bottomBar(cx) { cx.fillRect(0, 160, 100, 20) }
-        function upperLine(cx) { cx.fillRect(0, 0, 20, 100) }
-        function lowerLine(cx) { cx.fillRect(0, 80, 20, 100) }
-        function arcLeft(cx, type) {
-            switch (type) {
-                case 'topToMiddle':
+// DRAWING FUNCTIONS
+        function make(cx, ...func)  {
+            func = func.flat()
+        
+            let width =         cx.canvas.width,
+                height =        cx.canvas.height,
+                wThickness =    0.1,
+                hThickness =    wThickness * 2
+                middle =        0.4,
+                halfway =       0.5,
+                radius =        0.7,
+                fullway =       0.8
+
+            cx.lineWidth = width * hThickness
+
+            const draw = {
+                'style': function(arg) {
+                    let color = arg === 'white'
+                        ? '#fff'
+                        : arg === 'black'
+                        ? '#000'
+                        : arg === 'random'
+                        ? colors[Math.round(Math.random() * 26)] + '4'
+                        : '#f00'
+                    cx.fillStyle = color
+                },
+                'fill': function() {
+                    cx.fillRect(0, 0, width, height)
+                },
+                'bar': function(arg) {
+                    let y = arg === 'top'
+                        ? 0
+                        : arg === 'middle'
+                        ? height * middle
+                        : arg === 'bottom'
+                        ? height * fullway
+                        : arg
+                    cx.fillRect(0, y, width, height * wThickness) 
+                },
+                'line': function(arg) {
+                    let y = arg === 'upper'
+                        ? 0
+                        : arg === 'lower'
+                        ? height * middle
+                        : arg
+                    cx.fillRect(0, y, width * hThickness, height * halfway) 
+                },
+                'arcLeft': function(arg) {
+                    let [y1, y2] = arg === 'top'
+                        ? [height * wThickness, height * middle]
+                        : arg === 'middle'
+                        ? [height * halfway, height * fullway]
+                        : arg
                     cx.beginPath()
-                    cx.arc(20, 20, 70, 0, Math.PI / 2)
+                    cx.arc(width * hThickness, y1, width * radius, 0, Math.PI / 2)
                     cx.stroke()
-                    cx.fillRect(0, 80, 20, 20)
-                    break;
-                case 'middleToBottom':
+                    cx.fillRect(0, y2, width * hThickness, height * wThickness)
+                },
+                'arcRight': function(arg) {
+                    let [y1, y2] = arg === 'top'
+                        ? [height * wThickness, height * middle]
+                        : arg === 'middle'
+                        ? [height * halfway, height * fullway]
+                        : arg
                     cx.beginPath()
-                    cx.arc(20, 100, 70, 0, Math.PI / 2)
+                    cx.arc(width * fullway, y1, width * radius, Math.PI / 2, Math.PI)
                     cx.stroke()
-                    cx.fillRect(0, 160, 20, 20)
-                    break
-                default:
-                    break
+                    cx.fillRect(0, y1 - height * wThickness, width * hThickness, height * wThickness)
+                    cx.fillRect(width * fullway, y2, width * hThickness, height * wThickness)
+                },      
+                'arcRightUp': function(arg) {
+                    let [y1, y2] = arg === 'middle'
+                        ? [height * middle, 0]
+                        : arg === 'bottom'
+                        ? [height * fullway, height * middle]
+                        : arg
+                    cx.beginPath()
+                    cx.arc(width * fullway, y1, width * radius, Math.PI, 3 * Math.PI / 2)
+                    cx.stroke()
+                    cx.fillRect(0, y1, width * hThickness, height * wThickness)
+                    cx.fillRect(width - width * hThickness, y2, width * hThickness, height * wThickness)
+                },
+                'diagLeft': function(arg) {
+                    let [y1, y2] = arg === 'top'
+                        ? [0, height * halfway]
+                        : arg === 'middle'
+                        ? [height * middle, height - height * wThickness]
+                        : arg
+                    cx.beginPath()
+                    cx.moveTo(width - width * hThickness, y1)
+                    cx.lineTo(width, y1)
+                    cx.lineTo(width, y1 + height * wThickness)
+                    cx.lineTo(width * hThickness, y2)
+                    cx.lineTo(0, y2)
+                    cx.lineTo(0, y2 - height * wThickness)
+                    cx.fill()
+                },
+                'circle': function(arg) {
+                    let y = arg === 'top'
+                        ? height * wThickness
+                        : arg === 'middle'
+                        ? height * halfway - (width * hThickness / 2)
+                        : arg
+                    cx.beginPath()
+                    cx.arc(width * hThickness, y, width * wThickness, 0, Math.PI * 2)
+                    cx.stroke()
+                },
+                'square': function(arg) {
+                    let y = arg === 'top'
+                        ? 0
+                        : arg === 'bottom'
+                        ? height * fullway - (width * hThickness)
+                        : arg
+                    cx.fillRect(0, y, width * hThickness * 2, height * wThickness * 2)
+                },
+                'dot': function(arg) {
+                    let y = arg === 'top'
+                        ? 0
+                        : arg === 'bottom'
+                        ? height * fullway - (width * hThickness)
+                        : arg
+                    cx.fillRect(0, y, width * hThickness, height * wThickness * 2)
+                },
             }
-        }
-        function arcRight(cx, type) {
-            switch (type) {
-                case 'topToMiddle':
-                    cx.fillRect(0, 0, 20, 20)
-                    cx.beginPath()
-                    cx.arc(80, 20, 70, Math.PI / 2, Math.PI)
-                    cx.stroke()
-                    cx.fillRect(80, 80, 20, 20)
-                    break;
-                case 'middleToTop':
-                    cx.beginPath()
-                    cx.arc(80, 80, 70, Math.PI, 3 * Math.PI / 2)
-                    cx.stroke()
-                    cx.fillRect(80, 0, 20, 20)
-                    break
-                case 'middleToBottom':
-                    cx.beginPath()
-                    cx.arc(80, 100, 70, Math.PI / 2, Math.PI)
-                    cx.stroke()
-                    cx.fillRect(80, 160, 20, 20)
-                    break
-                case 'bottomToMiddle':
-                    cx.beginPath()
-                    cx.arc(80, 160, 70, Math.PI, 3 * Math.PI / 2)
-                    cx.stroke()
-                    cx.fillRect(0, 160, 20, 20)
-                    break
-                default:
-                    break
-            }
-        }
-        function circle(cx, type) {
-            if (type === 'top') {
-                cx.beginPath()
-                cx.arc(40, 20, 10, 0, Math.PI * 2)
-                cx.stroke()
-            }
-            else if (type === 'middle') {
-                cx.beginPath()
-                cx.arc(40, 90, 10, 0, Math.PI * 2)
-                cx.stroke()
-            }
+
+           draw[func[0]](func[1])
         }
 
+// DICTIONARY
         const dict = {
-            a: cx => {
-                topBar(cx)
-                upperLine(cx)
-            },
-            b: cx => {
-                upperLine(cx)
-                middleBar(cx)
-                arcLeft(cx, 'middleToBottom')
-            },
-            c: cx => {
-                topBar(cx)
-                upperLine(cx)
-                middleBar(cx)
-                lowerLine(cx)
-            },
-            d: cx => {
-                upperLine(cx)
-                middleBar(cx)
-                bottomBar(cx)
-            },
-            e: cx => {
-                topBar(cx)
-            },
-            f: cx => {
-                topBar(cx)
-                middleBar(cx)
-                lowerLine(cx)
-                bottomBar(cx)
-            },
-            g: cx => {
-                upperLine(cx)
-                lowerLine(cx)
-                bottomBar(cx)
-            },
-            h: cx => {
-                cx.fillStyle = 'white'
-                bottomBar(cx)
-                cx.fillStyle = 'black'
-                topBar(cx)
-                middleBar(cx)
-                arcLeft(cx, 'middleToBottom')
-            },
-            i: cx => {
-                topBar(cx)
-                middleBar(cx)
-            },
-            j: cx => {
-                topBar(cx)
-                upperLine(cx)
-                arcRight(cx, 'middleToBottom')
-            },
-            k: cx => {
-                upperLine(cx)
-                middleBar(cx)
-                lowerLine(cx)
-            },
-            l: cx => {
-                topBar(cx)
-                upperLine(cx)
-                middleBar(cx)
-                bottomBar(cx)
-            },
-            m: cx => {
-                upperLine(cx)
-                lowerLine(cx)
-            },
-            n: cx => {
-                upperLine(cx)
-                middleBar(cx)
-            },
-            o: cx => {
-                upperLine(cx)
-                arcRight(cx, 'middleToBottom')
-            },
-            p: cx => {
-                topBar(cx)
-                upperLine(cx)
-                lowerLine(cx)
-                bottomBar(cx)
-            },
-            q: cx => {
-                arcRight(cx, 'middleToTop')
-                middleBar(cx)
-                lowerLine(cx)
-            },
-            r: cx => {
-                topBar(cx)
-                upperLine(cx)
-                middleBar(cx)
-            },
-            s: cx => {
-                topBar(cx)
-                arcLeft(cx, 'topToMiddle')
-            },
-            t: cx => {
-                upperLine(cx)
-            },
-            u: cx => {
-                topBar(cx)
-                middleBar(cx)
-                lowerLine(cx)
-            },
-            v: cx => {
-                topBar(cx)
-                arcLeft(cx, 'topToMiddle')
-                lowerLine(cx)
-            },
-            w: cx => {
-                topBar(cx)
-                upperLine(cx)
-                lowerLine(cx)
-            },
-            x: cx => {
-                arcRight(cx, 'topToMiddle')
-                arcRight(cx, 'bottomToMiddle')
-            },
-            y: cx => {
-                upperLine(cx)
-                middleBar(cx)
-                arcRight(cx, 'middleToBottom')
-            },
-            z: cx => {
-                topBar(cx)
-                middleBar(cx)
-                arcRight(cx, 'middleToBottom')
-            },
-            1: function(cx) { this.e(cx) },
-            2: function(cx) { this.i(cx) },
-            3: function(cx) { this.s(cx) },
-            4: function(cx) { this.t(cx) },
-            5: function(cx) { this.n(cx) },
-            6: function(cx) { this.d(cx) },
-            7: function(cx) { this.h(cx) },
-            8: function(cx) { this.m(cx) },
-            9: function(cx) { this.a(cx) },
-            0: function(cx) { this.o(cx) },
-            _: cx => {
-                cx.fillStyle = 'white'
-                bottomBar(cx)
-                cx.fillStyle = 'black'
-                cx.fillRect(20, 160, 60, 20)
-            },
-            '#': cx => {
-                circle(cx, 'top')
-            },
-            '-': cx => {
-                circle(cx, 'middle')
-            },
-            '\'': cx => {
-                cx.fillRect(20, 0, 20, 40)
-            }
-            
+            a: [
+                ['bar', 'top'],
+                ['line', 'upper']
+            ],
+            b: [
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['arcLeft', 'middle'],
+            ],
+            c: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['line', 'lower']
+            ],
+            d: [
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['bar', 'bottom']
+            ],
+            e: [['bar', 'top']],
+            f: [
+                ['bar', 'top'],
+                ['bar', 'middle'],
+                ['line', 'lower'],
+                ['bar', 'bottom']
+            ],
+            g: [
+                ['line', 'upper'],
+                ['line', 'lower'],
+                ['bar', 'bottom']
+            ],
+            h: [
+                ['style', 'white'],
+                ['bar', 'bottokm'],
+                ['style', 'black'],
+                ['bar', 'top'],
+                ['bar', 'middle'],
+                ['arcLeft', 'middle']
+            ],
+            i: [
+                ['bar', 'top'],
+                ['bar', 'middle']
+            ],
+            j: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['arcRight', 'middle']
+            ],
+            k: [
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['line', 'lower']
+            ],
+            l: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['bar', 'bottom']
+            ],
+            m: [
+                ['line', 'upper'],
+                ['line', 'lower']
+            ],
+            n: [
+                ['line', 'upper'],
+                ['bar', 'middle']
+            ],
+            o: [
+                ['line', 'upper'],
+                ['arcRight', 'middle']
+            ],
+            p: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['line', 'lower'],
+                ['bar', 'bottom']
+            ],
+            q: [
+                ['arcRightUp', 'middle'],
+                ['bar', 'middle'],
+                ['line', 'lower']
+            ],
+            r: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['bar', 'middle']
+            ],
+            s: [
+                ['bar', 'top'],
+                ['arcLeft', 'top']
+            ],
+            t: [['line', 'upper']],
+            u: [
+                ['bar', 'top'],
+                ['bar', 'middle'],
+                ['line', 'lower']
+            ],
+            v: [
+                ['bar', 'top'],
+                ['arcLeft', 'top'],
+                ['line', 'lower']
+            ],
+            w: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['line', 'lower']
+            ],
+            x: [
+                ['arcRight', 'top'],
+                ['arcRightUp', 'bottom']
+            ],
+            y: [
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['arcRight', 'middle']
+            ],
+            z: [
+                ['bar', 'top'],
+                ['bar', 'middle'],
+                ['arcRight', 'middle']
+            ],
+            1: [
+                ['diagLeft', 'top']
+            ],
+            2: [
+                ['bar', 'top'],
+                ['diagLeft', 'top']
+            ],
+            3: [
+                ['line', 'upper'],
+                ['diagLeft', 'top']
+            ],
+            4: [
+                ['bar', 'middle'],
+                ['diagLeft', 'top']
+            ],
+            5: [
+                ['diagLeft', 'top'],
+                ['diagLeft', 'middle']
+            ],
+            6: [
+                ['line', 'upper'],
+                ['diagLeft', 'top'],
+                ['diagLeft', 'middle']
+            ],
+            7: [
+                ['bar', 'middle'],
+                ['diagLeft', 'top'],
+                ['diagLeft', 'middle']
+            ],
+            8: [
+                ['diagLeft', 'top'],
+                ['bar', 'middle'],
+                ['diagLeft', 'middle'],
+                ['bar', 'bottom']
+            ],
+            9: [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['line', 'lower'],
+                ['diagLeft', 'top'],
+                ['diagLeft', 'middle']
+            ],
+            0: [
+                ['line', 'upper'],
+                ['line', 'lower'],
+                ['diagLeft', 'top']
+            ],
+            _: [
+                ['style', 'random'],
+                ['bar', 'bottom'],
+                ['style', 'black'],
+            ],
+            '#': [['circle', 'top']],
+            '*': [
+                ['circle', 'top'],
+                ['circle', 'middle']
+            ],
+            '.': [['square', 'bottom']],
+            '\'': [['dot', 'top']],
+            ',': [['dot', 'bottom']],
+            '-': [['bar', 'middle']],
+            '=': [['bar', 'middle']],
+            'Space': [
+                ['style', 'random'],
+                'fill',
+                ['style', 'black']
+            ],
+            '&': [
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['line', 'lower'],
+                ['bar', 'bottom']
+            ],
+            '+': [
+                ['bar', 'top'],
+                ['bar', 'middle'],
+                ['bar', 'bottom']
+            ],
+            '(': [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['line', 'lower'],
+                ['bar', 'bottom']
+            ],
+            ')': [
+                ['arcRightUp', 'middle'],
+                ['bar', 'middle'],
+                ['bar', 'bottom']
+            ],
+            '[': [
+                ['arcRightUp', 'middle'],
+                ['bar', 'middle'],
+                ['line', 'lower'],
+                ['bar', 'bottom']
+            ],
+            ']': [
+                ['bar', 'top'],
+                ['line', 'upper'],
+                ['bar', 'middle'],
+                ['arcRight', 'middle']
+            ],
+            'E': [
+                ['circle', 'top']
+            ],
+            'I': [
+                ['circle', 'top'],
+                ['circle', 'middle']
+            ],
         }
         
+// KEY HANDLERS
         const letterResolver = key => {
             
             let image = document.createElement('canvas')
-            if (key.match(/^[\w\d]$/)
+            if (key.match(/^\w$/)
                 || letterGroups.extraCharacters.includes(key)
+                || letterGroups.unusedSymbols.includes(key)
             ) {
                 image.width = 100
                 image.height = 200
                 let context = image.getContext('2d')
-                context.lineWidth = 20
-                dict[key](context)
-                
+                if (!dict[key]) {
+                    key = 'Space'
+                }
+                if (key !== key.toLowerCase()
+                    && !['E', 'I', 'Space'].includes(key)
+                ) {
+                    key = key.toLowerCase()
+                }
+                for (let step of dict[key]) {
+                    make(context, step)
+                }
                 historyHandler(key)
             } else {
                 metaKeyHandler(key)
@@ -316,27 +491,25 @@ function main() {
             return image
         }
 
-        let line = 1
-        let lineEnds = {}
-
-        const specificLength = 40
-
-
         const metaKeyHandler = key => {
             switch (key) {
                 case '!': console.log(x, y); break
                 case '@': console.log(line, lineEnds); break
                 case '$': console.log(history); break
-                case '\\': x += scale * 20; break
-                case ' ': x += scale * 100; break
-                case 'enter': 
-                    lineEnds[line] = x
-                    line++
-                    x = 0
-                    y = scale * (line - 1) * 240
+                case '%': console.log(rawHistory); break
+                case '^': console.log(colors); break
+                case '\\': 
+                    x += scale * 20
+                    historyHandler(key)
                     break
-                case 'backspace':
-                    if (prev(0) === 'enter') {
+                // case 'Space':
+                    // console.log('hmmmmmm')
+                case 'Enter': 
+                    newLine()
+                    break
+    // needs work:
+                case 'Backspace':
+                    if (prev(0) === 'newLine') {
                         console.log('\'enter\' encountered!')
                         x = lineEnds[line - 1]
                         line--
@@ -347,20 +520,19 @@ function main() {
                     }
                     history.pop()
                     break
-                default: break
+                default: 
+                    break
             }
-            if (['\\', ' ', 'enter'].includes(key)) { historyHandler(key) }
         }
         
-        
+// DRAWING & SPACING FUNCTIONS
         const drawer = (image, key) => {
             let beforeSpace = 0
-            let afterSpace = 0
 
 // A, E, I, N, R, S, T
             if (letterGroups.short.includes(key)
                 &&
-                letterGroups.upperMiddleSpace.includes(prev(1))
+                ['g', 'o'].includes(prev(1))
             ) {
                 beforeSpace += (
                     (key === 't')
@@ -382,73 +554,106 @@ function main() {
                     || letterGroups.overBar.includes(prev(1))
                     || prev(1) === 'e'
                 ) {
-                    beforeSpace += specificLength   // AE, CE, EE, FE, HE, JE, LE, PE,
-                }                                   // QE, RE, SE, UE, VE, WE, ZE
+                    beforeSpace += specificLength   // AE, CE, JE, LE, PE, QE, RE, SE, VE, WE
+                }                                   // EE, FE, HE, UE, ZE
                 else if (letterGroups.upperSpace.includes(prev(1))) {
-                    beforeSpace += -specificLength  // BE, DE, GE, KE,
-                }                                   // NE, OE, XE, YE
-                else if (letterGroups.spacers.includes(prev(1))) {
-                    beforeSpace += -0               // ME, TE    ***************
+                    beforeSpace += -specificLength  // BE, DE, GE, KE, NE, OE, XE, YE
+                } 
+                else if (['m', 't'].includes(prev(1))) {
+                    beforeSpace += 0                // ME, TE
                 }
             }
-            
+            if (key === 'E') {
+                if (letterGroups.upperSpace.includes(prev(1))
+                    || ['g', 'o'].includes(prev(1))
+                ) {
+                    beforeSpace += -specificLength
+                }
+                else if (['m', 't'].includes(prev(1))) {
+                    beforeSpace += 0
+                }
+                else {
+                    beforeSpace += specificLength
+                }
+            }
+            if (prev(1) === 'E') {
+                beforeSpace += -20
+            }
+
 // H
             // dreadful & dreary
-            if (key === 'h'
-                &&
-                letterGroups.hLigatures.includes(prev(1))
-            ) {
-                beforeSpace += (
-                    prev(1) === 't'
-                        ? -60   // TH
-                    : prev(1) === 's'
-                        ? -100  // SH
+            if (key === 'h') {
+                if (letterGroups.hLigatures.includes(prev(1))) {
+                    beforeSpace += (
+                        prev(1) === 's'
+                        ? -100   // SH
                         : prev(1) === 'z'
-                        ? -30   // ZH
-                        : -60   // CH, GH, KH, PH, WH
-                )
+                        ? -30  // ZH
+                        : -60   // CH, GH, KH, PH, TH, WH
+                    )
+                }
+                if (['j', 'o', 'y'].includes(prev(1))) {
+                    beforeSpace += -30
+                }
             }
             if (prev(1) === 'h') {
                 if (letterGroups.hbConnectors.includes(key)) {
                     beforeSpace += (
                         letterGroups.hLigatures.includes(prev(2))
+                            ? specificLength    // CHA, GHA, KHA, PHA, etc. 
+                            : -20               // HA, HJ, HN, HO, HR, HT, HY
                     )
-                        ? 20        // CHA, GHA, KHA, PHA, SHA, etc.
-                        : -20       // HA, HJ, HN, HO, HR, HT, HY
                 }
-                else {
-                    beforeSpace += 20
+                else if (!['e', 'i', 's'].includes(key)
+                    && key.match(/^\w$/)
+                ) {
+                    beforeSpace += specificLength
                 }
+
+                // hs, hz, hm
             }
 
 // I
             if (key === 'i') {
-                if (letterGroups.spacers.includes(prev(1))
-                ) {
-                    beforeSpace += -20                  // MI, TI  
+                if (['m', 't'].includes(prev(1))) {
+                    beforeSpace += 0                    // MI, TI
                 }
-                else if (!letterGroups.iSpacers.includes(prev(1))) {
+                else if (!letterGroups.iSpacers.includes(prev(1))
+                    && prev(1)?.match(/^\w$/)
+                ) {
                     beforeSpace += specificLength       // All Excluding EI, GI, MI, OI, TO
                 }
             }   
+            if (key === 'I') {
+                if (['m', 't'].includes(prev(1))) {
+                    beforeSpace += 0                    // MI, TI
+                }
+                if (letterGroups.upperSpace.includes(prev(1))
+                    || ['g', 'o'].includes(prev(1))
+                ) {
+                    beforeSpace += -specificLength
+                }
+                else if (!letterGroups.iSpacers.includes(prev(1))
+                    && prev(1)?.match(/^\w$/)
+                ) {
+                    beforeSpace += specificLength       // All Excluding EI, GI, MI, OI, TO
+                }
+            } 
+            if (prev(1) === 'I') {
+                beforeSpace += -20
+            }
                 
 // M, T
-            if (letterGroups.spacers.includes(prev(1))) {
+            if (['m', 't'].includes(prev(1))) {
                 beforeSpace += -specificLength
             }
 
 // S
             if (key === 's') {
                 if (letterGroups.middleConnectors.includes(prev(1))) {       
-                    beforeSpace += (
-                        prev(1) === 'h'
-                        ? letterGroups.hLigatures.includes(prev(2)) 
-                            ? 0                 // CHS, GHS, KHS, etc.
-                            : 20                // HS
-                        : specificLength        // BS, CS, DS, FS, IS, KS, LS
-                    )                           // NS, QS, RS, US, XS, YS, ZS
-                }   
-                else if (letterGroups.spacers.includes(prev(1))) {
+                    beforeSpace += specificLength   // BS, CS, DS, FS, IS, KS, LS
+                }                                   // NS, QS, RS, US, XS, YS, ZS
+                else if (['m', 't'].includes(prev(1))) {
                     beforeSpace += 0            // MS, TS 
                     
                 }                   
@@ -459,29 +664,80 @@ function main() {
                 if (prev(1) === 'h'
                     && (prev(2) === 'c' || prev(2) === 'g')
                 ) {
-                    beforeSpace += -specificLength  // CHT, GHT
+                    beforeSpace += -60  // CHT, GHT
                 }
             }
 
-// '            
-            if (key === '\'') {
+// Punctuation
+    // Top
+            if (['#', '\''].includes(key)) {
                 if (letterGroups.upperSpace.includes(prev(1))
-                    || letterGroups.upperMiddleSpace.includes(prev(1))
+                    || ['g', 'o'].includes(prev(1))
                 ) {
-                    beforeSpace += -specificLength *2
+                    beforeSpace += -specificLength
+                }
+                else if (['m', 't'].includes(prev(1))) {
+                    beforeSpace += 0
+                }
+                else {
+                    beforeSpace += specificLength
                 }
             }
-            if (prev(1) === '\'') {
+            if (['*'].includes(key)) {
+                if (['g', 'o'].includes(prev(1))) {
+                    beforeSpace += -specificLength
+                }
+                else if (['m', 't'].includes(prev(1))) {
+                    beforeSpace += 0
+                }
+                else {
+                    beforeSpace += specificLength
+                }
+            }
+            if (['#', '*'].includes(prev(1))) {
+                beforeSpace += -20
+            }
+            if (['\''].includes(prev(1))) {
                 beforeSpace += -specificLength
             }
+    // Middle
+            if (['-'].includes(key)) {
+                if (letterGroups.middleSpace.includes(prev(1))) {
+                    beforeSpace += -specificLength
+                }
+            }
+    // Baseline
+            if (['.', ','].includes(key)) {
+                if (letterGroups.short.includes(prev(1))
+                    || ['m', 't'].includes(prev(1))
+                    || letterGroups.lowerSpace.includes(prev(1))
+                ) {
+                    beforeSpace += -40
+                }
+                beforeSpace += 20
+            }
+            if (['.'].includes(prev(1))) {
+                beforeSpace += -40
+            }
+            if ([','].includes(prev(1))) {
+                beforeSpace += -60
+            }
 
 
 
 
+    // bug repro: 
+    //      o ' r backspace m
+
+
+    // 1t 2t 3t 4t 5t 6t 7t 8t 9t 0t 
+    // 1m 2m 3m 4m 5m 6m 7m 8m 9m 0m
 
 
 
+// FIDDLY AREA
             if (feelinFiddly) {
+                beforeSpace += -20
                 switch (prev(1)) {
                     case 'a':
                         if (['c', 'f', 'h', 'j', 'l', 'p', 'u', 'v', 'w', 'z'].includes(key)) {
@@ -705,22 +961,28 @@ function main() {
                 }
             }
 
-
-
-
-
-
-            beforeSpace += feelinFiddly ? -20 : 0
             x = Math.max(0, x + scale * beforeSpace)
+            if (x >= 800 - 100 * scale) {
+                newLine()
+            }
+
             cx.drawImage(image, x, y, scale * 100, scale * 200)
-            x += scale * afterSpace
+
+            // cx.fillStyle = '#f99'
+            // cx.fillRect(x, y, 10, 10)
+            // cx.fillStyle = '#000'
+
             x += scale * 100
         }
 
-        window.addEventListener('keydown', e => {
-            const key = e.key.toLowerCase()
-
-            // console.log(key)
+// KEY LISTENER
+        const text = document.getElementById('text')
+        text.addEventListener('keydown', e => {
+            let key = e.key
+            if (key !== 'Shift') rawHistory.push(key)
+    
+            key = keyCleaner(key)
+            console.log(key)
 
             let image = letterResolver(key)
             if (image) {
@@ -728,6 +990,8 @@ function main() {
                 currentLetter = image
             }
         })
+        text.focus()
+        canvas.addEventListener('click', () => text.focus())
     } else {
         alert('Something is wrong with HTML5 Canvas.')
     }
