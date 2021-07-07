@@ -1,0 +1,56 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: monospace;
+    overflow: hidden;
+}
+
+a {
+    text-decoration: none;
+    color: #000;
+}
+hr {
+    height: 100%;
+}
+
+#main {
+    margin: 5px;
+    padding: 5px;
+    height: calc(100vh - 10px);
+    background-color: #234;
+    display: grid;
+    grid-template-rows: 25px 75px 20fr;
+    grid-template-columns: 33% 1fr 8fr;
+    grid-template-areas:
+        "header header header"
+        "left middle right"
+        /* "buttons buttons buttons" */
+        "column column column";
+    gap: 5px;
+}
+
+/*
+    33%   1fr[ee]  8fr[ee]
+____________________________
+| header | header | header |    25px
+| left   | middle | right  |    75px
+| / buttons /              |
+| canvas | canvas | canvas |    20fr[ee]
+         5px
+*/
+
+
+#star {
+    grid-area: middle;
+    align-self: center;
+    text-align: center;
+}
+#star p:hover {
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+#column {
+    grid-area: column;
+    width: 100%;
+}
