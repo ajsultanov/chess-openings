@@ -7,11 +7,8 @@
 */
 
 
-//  numbers are broken
-//  capitals aren't added yet
-//  no space, enter, backspace
 //  no spacing adjustments
-//  no history
+
 
 
 
@@ -30,19 +27,18 @@ const   CX = canvas.getContext('2d')
         CX.canvas.height = 800
 const   METAKEYS = ['Shift', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape']
 
-const   scaleFactor = 3 / 5
-const   letterWidth = 128 * scaleFactor
-const   letterHeight = 256 * scaleFactor
-const   middle = letterHeight / 2
-const   lineWidth = letterWidth / 3
+const   scaleFactor = 1
+const   letterWidth = 128 
+const   letterHeight = 224 
+const   middle = 5 * letterHeight / 12
+const   lineWidth = letterWidth / 4
 const   rad = lineWidth / 2
+const   ligModifier = 7 / 5
 
 function scale(...c) { 
-    let ヤキソバ = c.map(e => e * scaleFactor)
-    if (ヤキソバ.length === 1) {
-        return ヤキソバ[0]
-    }
-    return ヤキソバ
+    let    ヤキソバ = c.map(e => e * scaleFactor)
+    if    (ヤキソバ.length === 1) return ヤキソバ[0]
+                                 return ヤキソバ
 }
 
 const Typewriter = {
@@ -90,28 +86,25 @@ const Typewriter = {
                 this.space()
                 return
             }
-
             if (!dictionary[x.key]) return
-            let {cnv, width} = printer.print(x.key)
+            
             //  send cnv and width to:
             //  carriage, which adjusts x, subsitutes ligatures......
             //  adjust y.....
             //  for example: let {canvas, newWidth} = carriage(x.key)
-            let [xc, yc, w, h] = scale(this.xCoord, this.yCoord, 128, 256)
-            CX.drawImage(cnv, xc, yc, w, h)
+            
+            let {cnv, width} = printer.print(x.key)
+            // let [xc, yc] = scale(this.xCoord, this.yCoord)
+            let [xc, yc] = [this.xCoord, this.yCoord]
+            CX.drawImage(cnv, xc, yc, width, letterHeight)
             this.add = {key: x.key, w: width, x: this.xCoord, y: this.yCoord}
-            this.xCoord += width
-
+            this.xCoord += width //- (width / 100)
 
             if (this.xCoord >= (canvas.width / scaleFactor - letterWidth + lineWidth)) { 
-                this.enter() 
-                this.returnNext = true
+                // LINE BREAK ON OVERFLOW
+                // this.enter() 
+                // this.returnNext = true
             }
-
-            //  TRYING TO MAKE A CONTROLLED TEXT AREA
-            // text.value = this.history.map(el => {
-            //     return el.key
-            // }).join('')
         }
     },
     backspace() {
@@ -136,12 +129,12 @@ const Typewriter = {
     clear() {
         console.log('here\'s where you would clear everything, history, etc.')
     },
-
-
 }
 
 
-const carriage = {}
+const carriage = {
+
+}
 
 
 
@@ -157,25 +150,54 @@ const carriage = {}
 
 
 const printer = {
+    // cheese
     print(letter) {
         let cnv = document.createElement('canvas')
-        cnv.width = 128
-        cnv.height = 256
+        cnv.width = letterWidth
+        cnv.height = letterHeight
         let ncx = cnv.getContext('2d')
         ncx.lineWidth = lineWidth
-        let width = dictionary[letter](ncx)
+
+        printer.beforeLetters(ncx)
+        let width = dictionary[letter]({cn: cnv, cx: ncx, mod: ligModifier})
+        printer.afterLetters(ncx)
+
+
         return {cnv: cnv, width: width}
     },
 
     makePath({start, end}, cx) {
         let {x: startX, y: startY} = start
         let {x: endX, y: endY} = end
+        cx.lineWidth = lineWidth
+
         cx.beginPath()
         cx.moveTo(startX, startY)
         cx.lineTo(endX, endY)
+
+        cx.lineWidth = 0.5
+        cx.stroke()
+        cx.lineWidth = lineWidth
+
         cx.stroke()
         cx.closePath()
         return [startX, startY, endX, endY]
+    },
+
+    makeRect({a, b, c, d}, cx) {
+        let {x: x1, y: y1} = a
+        let {x: x2, y: y2} = b
+        let {x: x3, y: y3} = c
+        let {x: x4, y: y4} = d 
+
+        cx.beginPath()
+        cx.moveTo(x1, y1)
+        cx.lineTo(x2, y2)
+        cx.lineTo(x3, y3)
+        cx.lineTo(x4, y4)
+        this.addStroke(cx)
+        cx.fill()
+        cx.closePath()
     },
 
     // top left
@@ -185,9 +207,9 @@ const printer = {
             y: 0 + (rad * y)}
     },
     // top right
-    beta(x, y) {
+    beta(x, y, lw = letterWidth) {
         return { 
-            x: letterWidth - lineWidth + (rad * x), 
+            x: lw - lineWidth + (rad * x), 
             y: 0 + (rad * y)}
     },
     // middle left
@@ -198,41 +220,68 @@ const printer = {
         }
     },
     // middle right
-    delta(x, y) {
+    delta(x, y, lw = letterWidth) {
         return {
-            x: letterWidth - lineWidth + (rad * x),
+            x: lw - lineWidth + (rad * x),
             y: middle - rad + (rad * y),
         }
     },
     // bottom left
-    epsilon(x, y) {
+    // cheese
+    epsilon(x, y, mod = 0) {
         return {
             x: 0 + (rad * x),
             y: letterHeight - lineWidth + (rad * y),
         }
     },
     // bottom right
-    zeta(x, y) {
+    zeta(x, y, lw = letterWidth) {
         return {
-            x: letterWidth - lineWidth + (rad * x),
+            x: lw - lineWidth + (rad * x),
             y: letterHeight - lineWidth + (rad * y),
         }
     },
 
-    topBar() {
-        return { start: this.alpha(0, 1), end: this.beta(2, 1) }
+    topBar(width) {
+        // cheese
+        return { 
+            a: printer.alpha(0, 0),
+            b: printer.beta(2, 0, width),
+            c: printer.beta(2, 2, width),
+            d: printer.alpha(0, 2),
+        }
     },
     topLine() {
-        return { start: this.alpha(1, 0), end: this.gamma(1, 2) }
+        return { 
+            a: printer.alpha(0, 0),
+            b: printer.alpha(2, 0),
+            c: printer.gamma(2, 2),
+            d: printer.gamma(0, 2), 
+        }
     },
-    midBar() {
-        return { start: this.gamma(0, 1), end: this.delta(2, 1) }
+    midBar(width) {
+        return { 
+            a: printer.gamma(0, 0),
+            b: printer.delta(2, 0, width),
+            c: printer.delta(2, 2, width),
+            d: printer.gamma(0, 2), 
+        }
     },
     midLine() {
-        return { start: this.gamma(1, 0), end: this.epsilon(1, 2) }
+        return { 
+            a: printer.gamma(0, 0),
+            b: printer.gamma(2, 0),
+            c: printer.epsilon(2, 2),
+            d: printer.epsilon(0, 2), 
+        }
     },
-    bottomBar() {
-        return { start: this.epsilon(0, 1), end: this.zeta(2, 1)}
+    bottomBar(width) {
+        return { 
+            a: printer.epsilon(0, 0),
+            b: printer.zeta(2, 0, width),
+            c: printer.zeta(2, 2, width),
+            d: printer.epsilon(0, 2), 
+        }
     },
 
     makeArc({angles, position, rad}, cx) {
@@ -301,10 +350,8 @@ const printer = {
         let {x: cpX1, y: cpY1} = ctrl
         let {x: cpX2, y: cpY2} = ctrl
 
-        // will need this in a minute
         let L2R = start.x - end.x < 0
         let T2B = start.y - end.y < 0
-        console.log(L2R, T2B)
 
         // x1 += 0
         y1 += T2B ? lineWidth : 0
@@ -320,29 +367,30 @@ const printer = {
         cpY2 += (L2R && T2B) ? 0 : lineWidth
 
         cx.moveTo(
-            x1,
-            y1
+            x1, y1
         )
         cx.quadraticCurveTo(
-            cpX1, 
-            cpY1, 
-            x2,
-            y2
+            cpX1, cpY1, 
+            x2, y2
         )
         cx.lineTo(
-            x3, 
-            y3
+            x3, y3
         )
         cx.quadraticCurveTo(
-            cpX2, 
-            cpY2, 
-            x4,
-            y4
+            cpX2, cpY2, 
+            x4,y4
         )
-        cx.lineTo(x1, y1)
+        cx.lineTo(
+            x1, y1
+        )
+
+
+        this.addStroke(cx)
+
         cx.fill()
         cx.closePath()
             
+        // CONTROL POINTS
         // let color = 'darkolivegreen'
         // printer.controlPoint({start:{x:x1, y:y1}, end:{x:x2, y:y2}, ctrl:{x:cpX1, y:cpY1}, color}, cx)
         // color = 'cornflowerblue'
@@ -410,44 +458,94 @@ const printer = {
         }
     },
     sCurve() {
-        return {start: printer.beta(0, 0), ctrl: printer.delta(0, 0), end: printer.gamma(0, 0)}
+        return {
+            start: printer.beta(0, 0), 
+            ctrl: printer.delta(0, 0), 
+            end: printer.gamma(0, 0)
+        }
     },
     x1Curve() {
-        return {start: printer.alpha(0, 0), ctrl: printer.gamma(0, 0), end: printer.delta(0, 0)}
+        return {
+            start: printer.alpha(0, 0), 
+            ctrl: printer.gamma(0, 0), 
+            end: printer.delta(0, 0)
+        }
     },
     x2Curve() {
-        return {start: printer.epsilon(0, 0), ctrl: printer.gamma(0, 0), end: printer.delta(0, 0)}
+        return {
+            start: printer.epsilon(0, 0), 
+            ctrl: printer.gamma(0, 0), 
+            end: printer.delta(0, 0)
+        }
     },
-
+    
 
 
 
     eBox() {
-        return { start: this.epsilon(0, 1), end: this.epsilon(2, 1) }
+        return { 
+            a: this.epsilon(0, 0), 
+            b: this.epsilon(2, 0),
+            c: this.epsilon(2, 2),
+            d: this.epsilon(0, 2)
+        }
     },
     zBox() {
-        return { start: this.zeta(0, 1), end: this.zeta(2, 1) }
+        return { 
+            a: this.zeta(0, 0), 
+            b: this.zeta(2, 0),
+            c: this.zeta(2, 2),
+            d: this.zeta(0, 2)
+        }
     },
     bBox() {
-        return { start: this.beta(0, 1), end: this.beta(2, 1) }
+        return { 
+            a: this.beta(0, 0), 
+            b: this.beta(2, 0),
+            c: this.beta(2, 2),
+            d: this.beta(0, 2)
+        }
     },
     gBox() {
-        return { start: this.gamma(0, 1), end: this.gamma(2, 1) }
+        return { 
+            a: this.gamma(0, 0), 
+            b: this.gamma(2, 0),
+            c: this.gamma(2, 2),
+            d: this.gamma(0, 2)
+        }
     },
     xBoxes() {
         return [
-            { start: this.alpha(1, 0), end: this.alpha(1, 2) },
-            { start: this.delta(0, 1), end: this.delta(2, 1) },
-            { start: this.epsilon(1, 0), end: this.epsilon(1, 2) }
+            { 
+                a: this.alpha(0, 0), 
+                b: this.alpha(2, 0),
+                c: this.alpha(2, 2),
+                d: this.alpha(0, 2)
+            },
+            { 
+                a: this.delta(0, 0), 
+                b: this.delta(2, 0),
+                c: this.delta(2, 2),
+                d: this.delta(0, 2)            
+            },
+            {
+                a: this.epsilon(0, 0), 
+                b: this.epsilon(2, 0),
+                c: this.epsilon(2, 2),
+                d: this.epsilon(0, 2)            
+            }
         ]
     },
 
 
     overlay(cx) {
         for (const spot of ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']) {
+            cx.lineWidth = 1
+            let {x:textPointX, y:textPointY} = printer[spot](0.5, 0.5)
+            cx.fillStyle = 'red'
+            cx.fillText(spot[0], textPointX, textPointY);
             cx.strokeStyle = 'green'
             cx.fillStyle = 'lime'
-            cx.lineWidth = 1
             for (let i = 0; i < 3; i++) {
                 for (let j = 0; j < 3; j++) {
                     printer.makeArc(
@@ -464,6 +562,26 @@ const printer = {
                 cx.lineWidth = lineWidth
             }
     },
+    addStroke(cx) {
+        cx.lineWidth = 2
+        cx.strokeStyle = '#f00'
+        cx.stroke()
+        cx.lineWidth = lineWidth
+        cx.strokeStyle = '#000'
+    },
+    beforeLetters(cx) {
+        // cx.fillStyle = '#8ae4'
+        // cx.fillStyle = '#0f08'
+        // cx.fillRect(0, 0, letterWidth, letterHeight)
+        // cx.fillStyle = '#000'
+    },
+    afterLetters(cx) {
+        // printer.overlay(cx)
+    },
+
+
+
+
 }
 
 
@@ -471,359 +589,445 @@ const printer = {
 
 const dictionary = {
    
-   
-   
+  
 
     // letters
-    a(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
+    a({cn, cx}) {
+        // printer.makePath(printer.topBar(), cx)
+        // printer.makePath(printer.topLine(), cx)
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+
         return letterWidth
     },
-    b(cx) {
-        // cx.fillStyle = '#26a'
-        // cx.fillRect(0, 0, letterWidth, letterHeight)
-        // cx.fillStyle = '#000'
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        // printer.makeArc(printer.bArc(), cx)
-
-        // cx.beginPath()
-        // let {x: startX, y: startY} = printer.delta(1, 2)
-        // cx.moveTo(
-        //     startX,
-        //     startY - 1)
-        // let {x: cpX, y: cpY} = printer.zeta(0, 0)
-        // let {x: endX, y: endY} = printer.epsilon(2, 1)
-        // cpX += rad 
-        // cpY += rad
-        // cx.quadraticCurveTo(
-        //     cpX, 
-        //     cpY, 
-        //     endX - 1, 
-        //     endY)
-        // cx.stroke()
-        // cx.closePath()
+    b({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
         printer.makeCurve(printer.bCurve(), cx)
-        printer.makePath(printer.eBox(), cx)
-        // printer.overlay(cx)
+        printer.makeRect(printer.eBox(), cx)
         return letterWidth
     },
-    c(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.midLine(), cx)
+    c({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.midLine(), cx)
         return letterWidth
     },
-    d(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.bottomBar(), cx)
+    d({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.bottomBar(), cx)
         return letterWidth
     },
-    e(cx) {
-        printer.makePath(printer.topBar(), cx)
+    e({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
         return letterWidth
     },
-    f(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath(printer.bottomBar(), cx)
+    f({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(printer.bottomBar(), cx)
         return letterWidth
     },
-    g(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath(printer.bottomBar(), cx)
+    g({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(printer.bottomBar(), cx)
         return letterWidth
     },
-    h(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makeArc(printer.bArc(), cx)
-        printer.makePath(printer.eBox(), cx)
+    h({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeCurve(printer.bCurve(), cx)
+        printer.makeRect(printer.eBox(), cx)
         return letterWidth
     },
-    i(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
+    i({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
         return letterWidth
     },
-    j(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makeArc(printer.jArc(), cx)
-        printer.makePath(printer.zBox(), cx)
-        return letterWidth
-    },
-    k(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.midLine(), cx)
-        return letterWidth
-    },
-    l(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.bottomBar(), cx)
-        return letterWidth
-    },
-    m(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        return lineWidth * 2
-    },
-    n(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        return letterWidth
-    },
-    o(cx) {
-        printer.makePath(printer.topLine(), cx)
-        // printer.makeArc(printer.jArc(), cx)
-
-        // cx.beginPath()
-        // let {x: startX, y: startY} = printer.gamma(1, 2)    // a/b, g/d, e
-        // cx.moveTo(
-        //     startX,
-        //     startY - 1)                                     // always -
-        // let {x: cpX, y: cpY} = printer.epsilon(2, 0)        // a, g/d, e/z
-        // let ratio = letterHeight / letterWidth
-        // cpY += rad
-        // let {x: endX, y: endY} = printer.zeta(0, 1)         // b, g/d, e/z
-        // cx.quadraticCurveTo(
-        //     cpX, 
-        //     cpY, 
-        //     endX + 1,                                       // +/-
-        //     endY)
-        // cx.stroke()
-        // cx.closePath()
+    j({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
         printer.makeCurve(printer.jCurve(), cx)
-        printer.makePath(printer.zBox(), cx)
-        // printer.overlay(cx)
+        printer.makeRect(printer.zBox(), cx)
         return letterWidth
     },
-    p(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath(printer.bottomBar(), cx)
+    k({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.midLine(), cx)
         return letterWidth
     },
-    q(cx) {
-        // printer.makeArc(printer.qArc(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath(printer.bBox(), cx)
-
+    l({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.bottomBar(), cx)
+        return letterWidth
+    },
+    m({cn, cx}) {
+        const modifier = 1 / 2
+        cn.width = Math.max(letterWidth * modifier, lineWidth * 2)
+        console.log(letterWidth*modifier, lineWidth*2)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        return cn.width
+    },
+    n({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        return letterWidth
+    },
+    o({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeCurve(printer.jCurve(), cx)
+        printer.makeRect(printer.zBox(), cx)
+        return letterWidth
+    },
+    p({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(printer.bottomBar(), cx)
+        return letterWidth
+    },
+    q({cn, cx}) {
         printer.makeCurve(printer.qCurve(), cx)
-        // printer.overlay(cx)
+        printer.makeRect(printer.bBox(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.midLine(), cx)
         return letterWidth
     },   
-    r(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
+    r({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
         return letterWidth
     },
-    s(cx) {
-        printer.makePath(printer.topBar(), cx)
-        // printer.makeArc(printer.sArc(), cx)
-        printer.makePath(printer.gBox(), cx)
-
+    s({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
         printer.makeCurve(printer.sCurve(), cx)
-
+        printer.makeRect(printer.gBox(), cx)
         return letterWidth
     },   
-    t(cx) {
-        printer.makePath(printer.topLine(), cx)
-        return lineWidth * 2
+    t({cn, cx}) {
+        const modifier = 1 / 2
+        cn.width = Math.max(letterWidth * modifier, lineWidth * 2)
+        console.log(letterWidth*modifier, lineWidth*2)
+        printer.makeRect(printer.topLine(), cx)
+        return letterWidth * modifier
     },
-    u(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.midLine(), cx)
+    u({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.midLine(), cx)
         return letterWidth
     },
-    v(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makeArc(printer.sArc(), cx)
-        printer.makePath(printer.midLine(), cx)
+    v({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeCurve(printer.sCurve(), cx)
+        printer.makeRect(printer.midLine(), cx)
         return letterWidth
     },   
-    w(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
+    w({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
         return letterWidth
     },
-    x(cx) {
-        // printer.makeArc(printer.xArc1(), cx)
-        // printer.makeArc(printer.xArc2(), cx)
-        printer.makeCurve(printer.x1Curve(), cx)
+    x({cn, cx}) {printer.makeCurve(printer.x1Curve(), cx)
         printer.makeCurve(printer.x2Curve(), cx)
-
         for (const box of printer.xBoxes()) {
-            printer.makePath(box, cx)
+            printer.makeRect(box, cx)
         }
         return letterWidth
     },  
-    y(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        // printer.makeArc(printer.jArc(), cx)
-        printer.makePath(printer.zBox(), cx)
-
+    y({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
         printer.makeCurve(printer.jCurve(), cx)
+        printer.makeRect(printer.zBox(), cx)
         return letterWidth
         
     },  
-    z(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
-        // printer.makeArc(printer.jArc(), cx)
-        printer.makePath(printer.zBox(), cx)
-
+    z({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
         printer.makeCurve(printer.jCurve(), cx)
+        printer.makeRect(printer.zBox(), cx)
         return letterWidth
     },   
     
 
 
     // ligatures
-    ch(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth/2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
+    // cheese
+    ligCurve(width) {
+        console.log(letterWidth/2-rad)
+
+        console.log(width/2-rad)
+        return {
+            start: printer.delta(0, 1, width), 
+            ctrl: printer.zeta(0, 0, width), 
+            // end: printer.epsilon(2, 0, mod)
+            end: {
+                x: width / 2 - lineWidth,
+                y: letterHeight - lineWidth
+            }
+        }
+    },
+    sLigCurve(mod) {
+        return {
+            start: printer.beta(0, 2, letterWidth * mod), 
+            ctrl: printer.delta(0, 0, letterWidth * mod), 
+            end: printer.gamma(2, 0)
+        }
+    },
+    z1LigCurve(mod) {
+        return {
+            start: printer.delta(0, 1, letterWidth * mod), 
+            ctrl: printer.zeta(0, 0, letterWidth * mod), 
+            end: {
+                x: letterWidth * mod / 2 - lineWidth, 
+                y: letterHeight - lineWidth
+            }
+        }
+    },
+    z2LigCurve(mod) {
+        return {
+            start: printer.gamma(0, 1), 
+            ctrl: printer.epsilon(0, 0), 
+            end: {
+                x: letterWidth * mod / 2, 
+                y: letterHeight - lineWidth
+            }
+        }
+    },
+    shortTopBar(width) {
+        return { 
+            a: {x: letterWidth / 2 + rad, y: 0}, 
+            b: printer.beta(2, 0, width),
+            c: printer.beta(2, 2, width), 
+            d: {x: letterWidth / 2 + rad, y: lineWidth}
+        }
+    },
+    shortMidBar(width) {
+        return { 
+            a: {x: letterWidth / 2 + rad, y: middle - rad}, 
+            b: printer.delta(2, 0, width),
+            c: printer.delta(2, 2, width), 
+            d: {x: letterWidth / 2 + rad, y: middle + rad}
+        }
+    },
+    ligBlock(width) {
+        return { 
+            a: printer.delta(0, 2, width), 
+            b: printer.delta(2, 2, width),
+            c: printer.delta(2, 3, width), 
+            d: printer.delta(0, 3, width) 
+        }
+    },
+    ligBlock2(width) {
+        return { 
+            a: printer.gamma(0, 2, width), 
+            b: printer.gamma(2, 2, width),
+            c: printer.gamma(2, 3, width), 
+            d: printer.gamma(0, 3, width) 
+        }
+    },
+    ligBottomBlock(width) {
+        console.log(letterWidth / 2 - rad)
+        console.log(width / 2 - rad)
+        return { 
+            a: printer.epsilon(2, 0, width), 
+            b: {
+                x: width / 2, 
+                y: letterHeight-lineWidth
+            },
+            c: {
+                x: width / 2, 
+                y: letterHeight
+            },
+            d: printer.epsilon(2, 2, width)
+        }
+    },
+
+    C({cn, cx, mod}) {
+        // cheese
+        cn.width *= mod
+        printer.makeRect(printer.topBar(cn.width), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(cn.width), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(this.ligBlock(cn.width), cx)
+        printer.makeCurve(this.ligCurve(cn.width), cx)
+        printer.makeRect({
+            a: {x:lineWidth*2, y:letterHeight-lineWidth},
+            b: {x:cn.width/2, y:letterHeight-lineWidth},
+            c: {x:cn.width/2, y:letterHeight},
+            d: {x:lineWidth*2, y:letterHeight}
+        }, cx)
+        return cn.width
+    },
+    G({cn, cx, mod}) {
+        // ghost
+        cn.width *= mod
+        // printer.makeRect({
+        //     a: {x:cn.width/2, y:0},
+        //     b: {x:cn.width/2, y:0},
+        //     c: {x:cn.width/2, y:letterHeight},
+        //     d: {x:cn.width/2, y:letterHeight}
+        // }, cx)
+        printer.makeRect(this.shortTopBar(cn.width), cx)        
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(this.shortMidBar(cn.width), cx)     
+        printer.makeRect(this.ligBlock(cn.width), cx)
+        printer.makeCurve(this.ligCurve(cn.width), cx)
+        printer.makeRect(this.ligBottomBlock(cn.width), cx)
+        return cn.width
+    },
+    K({cn, cx, mod}) {
+        // khaki
+        cn.width *= mod
+        // printer.makeRect({
+        //     a: {x:cn.width/2-rad, y:0},
+        //     b: {x:cn.width/2-rad, y:0},
+        //     c: {x:cn.width/2-rad, y:letterHeight},
+        //     d: {x:cn.width/2-rad, y:letterHeight}
+        // }, cx)
+        printer.makeRect(this.shortTopBar(cn.width), cx)        
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(cn.width), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(this.ligBlock(cn.width), cx)
+        printer.makeCurve(this.ligCurve(cn.width), cx)
+        // printer.makeRect({
+        //     a: {x:cn.width/2-rad, y:letterHeight-lineWidth},
+        //     b: {x:cn.width/2, y:letterHeight-lineWidth},
+        //     c: {x:cn.width/2, y:letterHeight},
+        //     d: {x:cn.width/2-rad, y:letterHeight}
+        // }, cx)
+        return cn.width
+    },
+    P({cn, cx, mod}) {
+        // phone
+        cn.width *= mod
+        printer.makeRect(printer.topBar(cn.width), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        printer.makeRect(this.shortMidBar(cn.width), cx)     
+        printer.makeRect(this.ligBlock(cn.width), cx)
+        printer.makeCurve(this.ligCurve(cn.width), cx)
+        printer.makeRect(this.ligBottomBlock(cn.width), cx)
+        return cn.width
+    },
+    S({cn, cx}) {
+        // shell
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeCurve(printer.sCurve(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeCurve(printer.bCurve(), cx)
+        printer.makeRect(printer.eBox(), cx)
         return letterWidth
     },
-    gh(cx) {
-        printer.makePath({start: printer.alpha(4, 1), end: printer.beta(2, 1)}, cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath({start: printer.gamma(4, 1), end: printer.delta(2, 1)}, cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth / 2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
-        printer.makePath({start: printer.epsilon(2, 1), end: printer.epsilon(4, 1)}, cx)
+    T({cn, cx}) {
+        // thing
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeCurve(printer.bCurve(), cx)
+        printer.makeRect(printer.eBox(), cx)
         return letterWidth
     },
-    kh(cx) {
-        printer.makePath({start: printer.alpha(4, 1), end: printer.beta(2, 1)}, cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth / 2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
-        return letterWidth
+    W({cn, cx, mod}) {
+        // wheel
+        cn.width *= mod
+        printer.makeRect(printer.topBar(cn.width), cx)
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+
+        printer.makeRect(this.shortMidBar(cn.width), cx)     
+        printer.makeRect(this.ligBlock(cn.width), cx)
+        printer.makeCurve(this.ligCurve(cn.width), cx)
+        printer.makeCurve(this.ligCurve(cn.width), cx)    
+        return cn.width
     },
-    ph(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath({start: printer.gamma(4, 1), end: printer.delta(2, 1)}, cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth / 2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
-        printer.makePath({start: printer.epsilon(2, 1), end: printer.epsilon(4, 1)}, cx)
-        return letterWidth
-    },
-    sh(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makeArc(printer.sArc(), cx)
-        printer.makePath(printer.gBox(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth / 2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
-        printer.makePath({start: printer.epsilon(0, 1), end: printer.epsilon(4, 1)}, cx)
-        return letterWidth
-    },
-    th(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth / 2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
-        printer.makePath({start: printer.epsilon(0, 1), end: printer.epsilon(4, 1)}, cx)
-        return letterWidth
-    },
-    wh(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        printer.makePath({start: printer.gamma(4, 1), end: printer.delta(2, 1)}, cx)
-        printer.makeArc({angles: printer.southEast, position: printer.gamma(4, 4), rad: letterWidth / 2}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 4)}, cx)
-        return letterWidth
-    },
-    zh(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath({start: printer.gamma(1, 2), end: printer.gamma(1, 5)}, cx)
-        printer.makePath({start: printer.delta(1, 2), end: printer.delta(1, 5)}, cx)
-        printer.makeArc({angles: printer.south, position: printer.gamma(5, 5), rad: letterWidth - (lineWidth * 3)}, cx)
-        return letterWidth
+    Z({cn, cx, mod}) {
+        // zhoosh
+        cn.width *= mod
+        printer.makeRect(printer.topBar(cn.width), cx)
+        printer.makeRect(printer.midBar(cn.width), cx)
+        printer.makeRect(this.ligBlock(cn.width), cx)
+        printer.makeRect(this.ligBlock2(cn.width), cx)
+        printer.makeCurve(this.z1LigCurve(cn.width), cx)
+        printer.makeCurve(this.z2LigCurve(cn.width), cx)
+        return cn.width
     },
 
 
 
 
     // numbers
-    1(cx) {
-        printer.makePath(printer.topBar(), cx)
+    1({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
         return letterWidth
     }, 
-    2(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
+    2({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
         return letterWidth
     }, 
-    3(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makeArc(printer.sArc(), cx)
-        printer.makePath(printer.gBox(), cx)
+    3({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeCurve(printer.sCurve(), cx)
+        printer.makeRect(printer.gBox(), cx)
         return letterWidth
     }, 
-    4(cx) {
-        printer.makePath(printer.topLine(), cx)
-        return lineWidth * 2
+    4({cn, cx}) {
+        const modifier = 1 / 2
+        cn.width *= modifier
+        printer.makeRect(printer.topLine(), cx)
+        return letterWidth * modifier
     }, 
-    5(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
+    5({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
         return letterWidth
     }, 
-    6(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makePath(printer.bottomBar(), cx)
+    6({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeRect(printer.bottomBar(), cx)
         return letterWidth
     }, 
-    7(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.midBar(), cx)
-        printer.makeArc(printer.bArc(), cx)
-        printer.makePath(printer.eBox(), cx)
+    7({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.midBar(), cx)
+        printer.makeCurve(printer.bCurve(), cx)
+        printer.makeRect(printer.eBox(), cx)
         return letterWidth
     }, 
-    8(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makePath(printer.midLine(), cx)
-        return lineWidth * 2
+    8({cn, cx}) {
+        const modifier = 1 / 2
+        cn.width *= modifier
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeRect(printer.midLine(), cx)
+        return letterWidth * modifier
     }, 
-    9(cx) {
-        printer.makePath(printer.topBar(), cx)
-        printer.makePath(printer.topLine(), cx)
+    9({cn, cx}) {
+        printer.makeRect(printer.topBar(), cx)
+        printer.makeRect(printer.topLine(), cx)
         return letterWidth
     }, 
-    0(cx) {
-        printer.makePath(printer.topLine(), cx)
-        printer.makeArc(printer.jArc(), cx)
-        printer.makePath(printer.zBox(), cx)
+    0({cn, cx}) {
+        printer.makeRect(printer.topLine(), cx)
+        printer.makeCurve(printer.jCurve(), cx)
+        printer.makeRect(printer.zBox(), cx)
         return letterWidth
     },  
 }
@@ -834,15 +1038,15 @@ const dictionary = {
 
 
 //  TESTS
-let cnv = document.createElement('canvas')
-cnv.width = letterWidth
-cnv.height = letterHeight
-let ncx = cnv.getContext('2d')
-ncx.lineWidth = lineWidth
+// let cnv = document.createElement('canvas')
+// cnv.width = letterWidth
+// cnv.height = letterHeight
+// let ncx = cnv.getContext('2d')
+// ncx.lineWidth = lineWidth
 
-// dictionary['zh'](ncx)
-// CX.drawImage(cnv, scale(0), 0, scale(120), scale(216))
-// ncx.clearRect(0, 0, 120, 240)
+// dictionary['8'](ncx)
+// CX.drawImage(cnv, scale(200), scale(200), scale(128), scale(224))
+// ncx.clearRect(0, 0, 64, 112)
 
 // dictionary['sh'](ncx)
 // CX.drawImage(cnv, scale(200), 0, scale(120), scale(216))
