@@ -6,10 +6,17 @@
     w   w      w        www        w         w          WWWW 
 */
 
+///     back space when a letter overlaps the one previous or makes a ligature !!!!!!!
+///     some other backspace issues, like with the capitals
+///     problem with ligatures spacing when following one another
+
+
 const   title = document.getElementById('title')
         title.addEventListener('click', () => console.table(Typewriter.history))
 const   text = document.getElementById('text')
-        text.addEventListener('keydown', e => { Typewriter.control(e) })
+        text.addEventListener('keydown', e => { 
+            Typewriter.switchboard(e, options) 
+        })
         text.focus()
 const   star = document.getElementById('star')
         star.addEventListener('click', () => { Typewriter.clear() })
@@ -20,6 +27,22 @@ const   CX = canvas.getContext('2d')
         CX.canvas.height = 800
 const   METAKEYS = ['Shift', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape']
 
+const   options = {
+    scaleFactor: 1,
+    letterWidth: 64,
+    letterHeight: 112,
+    ligModifier: (7 / 5).toFixed(2),
+    get hwRatio() {     return (this.letterHeight / this.letterWidth).toFixed(2) },
+    get lineWidth() {   return Math.min(this.letterWidth / 4, this.letterHeight / 7).toFixed(2) },
+    get lineHeight() {  return (this.letterHeight * (1 + 2 / 5)).toFixed(2) },
+
+    get middle() {      return (this.letterHeight * 5 / 12).toFixed(2) },
+    get centerX() {     return (this.letterWidth / 2).toFixed(2) },
+    get centerY() {     return (this.letterWidth / 2).toFixed(2) },
+    get rad() {         return (this.lineWidth / 2).toFixed(2) },
+}
+
+//  these are overriding the options object
 const   scaleFactor = 1
 const   letterWidth = 64 * scaleFactor
 const   letterHeight = 112 * scaleFactor
@@ -38,58 +61,70 @@ function scale(...c) {
 }
 
 const Typewriter = {
-    cx: CX,
-    currentKey: null,
     history: [],
-
-    xCoord: 0,
-    yCoord: 0,
-    get coords() { return [this.xCoord, this.yCoord] },
+    get last() { return this.history[this.history.length - 1] },
     getPrev(n = 1) {
         if (this.history.length === 0) return undefined
         return this.history[this.history.length - n]
     },
-    set add(val) { 
-        if (val) this.history.push(val)
-    },
+    set add(val) { if (val) { this.history.push(val) } },
+    xCoord: 0,
+    yCoord: 0,
+    get coords() { return {x: this.xCoord, y: this.yCoord} },
+    set x(val) { x = Math.round(val) },
+    set y(val) { y = Math.round(val) },
 
-    control(x) { 
+    switchboard(e) {
+        // clean key here
+        // any event cleanup business
+        let key = e.key
+        if (!dictionary[key] && dictionary[key.toLowerCase()]) { 
+            key = key.toLowerCase() 
+        }
+        this.control(key, options)
+    },
+    
+    control(key, options) { 
+        let letterWidth = options.letterWidth || 64
+        let letterHeight = options.letterHeight || 112
+        let scale = options.scaleFactor || 1
+
         if (this.returnNext) text.value += '\n'
         this.returnNext = false
-        if (!METAKEYS.includes(x.key)) {
-            if (x.key === 'Backspace') {
+
+        if (!METAKEYS.includes(key)) {
+            if (key === 'Backspace') {
                 this.backspace()
                 return
             }
-            else if (x.key === 'Enter') {
+            else if (key === 'Enter') {
                 this.enter()
                 return
             }
-            else if (x.key === ' ') {
+            else if (key === ' ') {
                 this.space()
                 return
             }
-            else if (x.key === '\\') {
+            else if (key === '\\') {
                 this.lilSpace()
                 return
             }
-            else if (x.key === '|') {
+            else if (key === '|') {
                 this.litlerSpace()
                 return
             }
-            else if (x.key === '+') {
+            else if (key === '+') {
                 this.litlestSpace()
                 return
             }
-            if (!dictionary[x.key]) return
-
-
-
-
+            if (!dictionary[key]) {
+                // text.value = [...Typewriter.history.map(el => el.key.length === 1 ? el.key : '')].slice(strings[0].length).join('')
+                return
+            }
 
             // determine if meta character or ligature from history/dictionary
             // get letter width
-            let [letter, width, height] = carriage.resolve(x.key)
+            let [letter, width, height] = carriage.resolve(key)
 
             // get canvas from printer
             if (dictionary[letter]) {
@@ -98,6 +133,7 @@ const Typewriter = {
                 // get coordinatesfrom carriage
                 let [xCoord, yCoord] = carriage.spacing(letter)
                 
+                console.log(letterHeight) // <--- global variable or from options object? might be more
                 CX.drawImage(cnv, xCoord, yCoord, width, letterHeight)
                 this.add = {key: letter, w: width, x: xCoord, y: yCoord}
                 
@@ -105,13 +141,10 @@ const Typewriter = {
                 this.xCoord = xCoord + width 
                 
             } else { console.log('not here!!!!') }
-            //return ?
+
+            // return ??
         }
     },
-
-
-
-
 
     backspace() {
         let last = this.getPrev()
@@ -136,7 +169,7 @@ const Typewriter = {
     lilSpace() {
         this.add = {key: 'lilSpace', w: letterWidth / 2, x: this.xCoord, y: this.yCoord}
         // this.xCoord += letterWidth / 2
-        // using this to break up ligatures
+        // using this to just break up ligatures
     },
     litlerSpace() {
         this.add = {key: 'lilSpace', w: letterWidth / 4, x: this.xCoord, y: this.yCoord}
@@ -152,65 +185,90 @@ const Typewriter = {
 }
 
 
-
-
-
-
-
-
-
-
-
 const carriage = {
-    some: 0,
-    stuff: 1,
+    noLigFlag: false,
+    nAdjustment: lineWidth * 3 / 2,
+    pAdjustment: lineWidth,
 
     resolve(key) {
         let [width, height] = [letterWidth, letterHeight]
         let letter = key
 
-        if (key === 'h') {
-            let lig = `${Typewriter.getPrev()?.key}h`
-            console.log(lig)
-            if (dictionary[lig]) {
-                letter = lig
-                Typewriter.backspace()
-                if (!['sh', 'th'].includes(letter)) {
+        if (dictionary.tags.spacers.includes(letter)) {
+            width = letterWidth / 2
+        } // MT
+        if (!this.noLigFlag) {
+            if (key === 'h') {
+                let lig = `${Typewriter.getPrev()?.key}h`
+                if (dictionary[lig]) {
+                    letter = lig
+                    Typewriter.backspace()
+                    if (!['sh', 'th'].includes(letter)) {
+                        width = width * ligModifier
+                    }
+                }
+            }
+            if (key === 'o') {
+                let lig = `${Typewriter.getPrev()?.key}o`
+                if (dictionary[lig]) {
+                    letter = lig
+                    Typewriter.backspace()
                     width = width * ligModifier
                 }
             }
         }
-        if (dictionary.tags.spacers.includes(letter)) {
-            width = letterWidth / 2
-        } // MT
-        if (dictionary.tags.hbConnectors.includes(letter)) {
-            if (['b', 'h'].includes(Typewriter.getPrev()?.key)) {
-                // dont want to make ligatures for each ~ overlay is fine
-                // still need to sub 'ha' or 'bt or whatever into history
-            }
+        else { 
+            letter = dictionary[letter] ? letter : null 
+            this.noLigFlag = false
         }
-
-        else { letter = dictionary[letter] ? letter : null }
         return [letter, width, height]
     },
-
 
     spacing(letter) {
         let [x, y] = [Typewriter.xCoord, Typewriter.yCoord]
 
-        if (dictionary.tags.supershort.includes(letter)) {
-            if (dictionary.tags.antisupershort.includes(Typewriter.getPrev()?.key)) {
-                x -= lineWidth
+        if (['E', 'I', 'S'].includes(letter)) {
+            if (!['m', 't', 'E', 'I', 'S', 'space', 'enter', undefined].includes(Typewriter.getPrev()?.key)) {
+                x += this.pAdjustment
             }
         }
-        else if (dictionary.tags.short.includes(letter)) {
-            if (dictionary.tags.antishort.includes(Typewriter.getPrev()?.key)) {
-                x -= lineWidth
+        if (dictionary.tags.short.includes(letter)) {
+            if (dictionary.tags.supershort.includes(letter)) {
+                if (dictionary.tags.antisupershort.includes(Typewriter.getPrev()?.key)
+                || dictionary.tags.antishort.includes(Typewriter.getPrev()?.key)) {
+                    x -= this.nAdjustment
+                } 
+                else if (dictionary.tags.eSpace.includes(Typewriter.getPrev()?.key)) {
+                    x += this.pAdjustment
+                }
+            }
+            else if (['i'].includes(letter)
+            && dictionary.tags.iSpace.includes(Typewriter.getPrev()?.key)) {
+                x += this.pAdjustment
+            }
+            else if (['s'].includes(letter)
+            && dictionary.tags.sSpace.includes(Typewriter.getPrev()?.key)) {
+                x += this.pAdjustment
+            }
+            else if (dictionary.tags.antishort.includes(Typewriter.getPrev()?.key)) {
+                x -= this.nAdjustment
             }
         }
 
-        // ligatures = more space, i.e. if prev letter.length > 1, xcoord++
-        
+
+
+        if (dictionary.tags.hbConnectors.includes(letter)) {
+            if (['b', 'h'].includes(Typewriter.getPrev()?.key)) {
+                x -= this.pAdjustment
+                this.noLigFlag = true
+            }
+        }
+        if (dictionary.tags.hLigatures.includes(Typewriter.getPrev()?.key)) {
+            if (['ch', 'gh'].includes(Typewriter.getPrev()?.key) && letter === 't') {
+                x -= this.nAdjustment
+            }
+            else { x += this.pAdjustment }
+        }
         return [x, y]
     },
 }
@@ -251,9 +309,9 @@ const printer = {
 
         this.makePath(ncx, letter)
         
-        if (letter.match(/[\w]/)) {
+        if (letter.match(/[a-z0-9_]/)) {
             ncx.stroke()
-        } else {
+        } else if (letter.match(/[A-Z]/)) {
             ncx.fill()
         }
     
@@ -410,15 +468,6 @@ const printer = {
 
 
 const dictionary = {
-    tags: {
-        short: ['a', 'e', 'i', 'n', 'r', 's', 't'],
-        antishort: ['g', 'o'],
-        supershort: ['e'],
-        antisupershort: ['b', 'd', 'k', 'n', 'x', 'y'],
-        spacers: ['m', 't'],
-        hLigatures: ['c', 'g', 'k', 'p', 's', 't', 'w', 'z'],
-        hbConnectors: ['a', 'j', 'n', 'o', 'r', 't', 'y'], // D? L?
-    },
     a() {
         return function(ctx, c) {
             printer.origin(ctx, c)
@@ -736,6 +785,14 @@ const dictionary = {
             printer.line(ctx, c)
         }  
     },
+    // oo() {
+    //     return function(ctx, c) {
+    //         printer.origin(ctx, c)
+    //         printer.line(ctx, c)
+    //         printer.curve(ctx, c, 'j')
+    //         // zh-type bottom curve, second o
+    //     }  
+    // },
     ph() {
         return function(ctx, c) {
             printer.origin(ctx, c)
@@ -793,6 +850,30 @@ const dictionary = {
             printer.zhCurve(ctx, c)
         }  
     },
+    E() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.dot(ctx, c)
+        }  
+    },
+    I() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.dot(ctx, c)
+            printer.skip(ctx, c)
+            printer.dot(ctx, c)
+        }  
+    },
+    S() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.dot(ctx, c)
+            printer.skip(ctx, c)
+            printer.dot(ctx, c)
+            printer.skip(ctx, c)
+            printer.dot(ctx, c)
+        }  
+    },
     _() {
         return function(ctx, c) {
             printer.origin(ctx, c)
@@ -801,10 +882,26 @@ const dictionary = {
             printer.bar(ctx, c)
         }  
     },
+    tags: {
+        short: ['a', 'e', 'i', 'n', 'r', 's', 't'],
+        antishort: ['g', 'o'],
+        supershort: ['e'],
+        antisupershort: ['b', 'd', 'k', 'n', 'x', 'y'],
+        spacers: ['m', 't', 'E', 'I', 'S'],
+        hLigatures: ['ch', 'gh', 'kh', 'ph', 'sh', 'th', 'wh', 'zh'],
+        hbConnectors: ['a', 'j', 'n', 'o', 'r', 't', 'y', 'd', 'l'], // D? L?
+        eSpace: ['a', 'c', 'e', 'f', 'h', 'j', 'l', 'p', 'q', 'r', 's', 'u', 'v', 'w', 'z'], 
+        // less conservative: a, e, j, p, w
+        iSpace: ['a', 'b', 'c', 'd', 'f', 'h', 'i', 'j', 'k', 'l', 'n', 'p', 'q', 'r', 's', 'u', 'v', 'w', 'x', 'y', 'z'],
+        // less conservative: c, i, q, r, u, z
+        sSpace: ['c', 'f', 'h', 'i', 'l', 'q', 'r', 'u', 'z'], // A? E? J? P? V? W?
+        // less conservative: c, i, q, r, u, z
+        // more conservative: a, b, c, d, e, f, h, i, j, k, l, n, p, q, r, u, w, x, y, z
+    },
 }
 
 // tests
-let strings = ['_wijit', '']
+let strings = ['_wijit']
 let scaler = 0.5
 for (const string of strings) {
     if (!string) { Typewriter.yCoord -= Math.round(lineHeight * scaler) }
@@ -818,8 +915,11 @@ for (const string of strings) {
         
         let cnv = printer.print(temp, width, canvas)
         CX.drawImage(cnv, Typewriter.xCoord, Typewriter.yCoord, width * scaler, height * scaler)
-        Typewriter.add = {key: string[i], w: width * scaler, x: Typewriter.xCoord, y: Typewriter.yCoord}
+        // Typewriter.add = {key: string[i], w: width * scaler, x: Typewriter.xCoord, y: Typewriter.yCoord}
         Typewriter.xCoord += width * scaler
     }
     Typewriter.enter(scaler)
+    Typewriter.history = []
 }
+
+/// search with regular expressions
