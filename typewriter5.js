@@ -6,8 +6,6 @@
     w   w      w        www        w         w          WWWW 
 */
 
-
-
 const   title = document.getElementById('title')
         title.addEventListener('click', () => console.table(Typewriter.history))
 const   text = document.getElementById('text')
@@ -28,7 +26,7 @@ const   letterHeight = 112 * scaleFactor
 const   middle = 5 * letterHeight / 12
 const   centerX = letterWidth / 2
 const   centerY = letterHeight / 2
-const   lineWidth = letterWidth / 3
+const   lineWidth = letterWidth / 4
 const   rad = lineWidth / 2
 const   ligModifier = 7 / 5
 const   lineHeight = letterHeight * (1 + 2 / 5)
@@ -36,7 +34,7 @@ const   lineHeight = letterHeight * (1 + 2 / 5)
 function scale(...c) { 
     let    ヤキソバ = c.map(e => e * scaleFactor)
     if    (ヤキソバ.length === 1) return ヤキソバ[0]
-                                 return ヤキソバ
+    return ヤキソバ
 }
 
 const Typewriter = {
@@ -85,25 +83,36 @@ const Typewriter = {
             }
             if (!dictionary[x.key]) return
 
+
+
+
+
             // determine if meta character or ligature from history/dictionary
             // get letter width
-            // let [width, height] = xyz
+            let [letter, width, height] = carriage.resolve(x.key)
 
             // get canvas from printer
-            let cnv = printer.print(x.key)
-
-            // get coordinatesfrom carriage
-            // let [xCoord, yCoord] = xyz
-
-            CX.drawImage(cnv, this.xCoord, this.yCoord, letterWidth, letterHeight)
-            this.add = {key: x.key, w: letterWidth, x: this.xCoord, y: this.yCoord}
-
-            // based on width
-            this.xCoord += letterWidth 
-
+            if (dictionary[letter]) {
+                let cnv = printer.print(letter, width)
+                
+                // get coordinatesfrom carriage
+                let [xCoord, yCoord] = carriage.spacing(letter)
+                
+                CX.drawImage(cnv, xCoord, yCoord, width, letterHeight)
+                this.add = {key: letter, w: width, x: xCoord, y: yCoord}
+                
+                // based on width
+                this.xCoord = xCoord + width 
+                
+            } else { console.log('not here!!!!') }
             //return ?
         }
     },
+
+
+
+
+
     backspace() {
         let last = this.getPrev()
         if (last) {
@@ -114,10 +123,11 @@ const Typewriter = {
             this.history.pop()
         }
     },
-    enter() {
+    enter(s) {
+        let sc = s || 1
         this.add = {key: 'enter', w: 0, x: this.xCoord, y: this.yCoord}
         this.xCoord = 0
-        this.yCoord += lineHeight
+        this.yCoord += lineHeight * sc
     },
     space() {
         this.add = {key: 'space', w: letterWidth, x: this.xCoord, y: this.yCoord}
@@ -125,7 +135,8 @@ const Typewriter = {
     },
     lilSpace() {
         this.add = {key: 'lilSpace', w: letterWidth / 2, x: this.xCoord, y: this.yCoord}
-        this.xCoord += letterWidth / 2
+        // this.xCoord += letterWidth / 2
+        // using this to break up ligatures
     },
     litlerSpace() {
         this.add = {key: 'lilSpace', w: letterWidth / 4, x: this.xCoord, y: this.yCoord}
@@ -141,24 +152,106 @@ const Typewriter = {
 }
 
 
+
+
+
+
+
+
+
+
+
+const carriage = {
+    some: 0,
+    stuff: 1,
+
+    resolve(key) {
+        let [width, height] = [letterWidth, letterHeight]
+        let letter = key
+
+        if (key === 'h') {
+            let lig = `${Typewriter.getPrev()?.key}h`
+            console.log(lig)
+            if (dictionary[lig]) {
+                letter = lig
+                Typewriter.backspace()
+                if (!['sh', 'th'].includes(letter)) {
+                    width = width * ligModifier
+                }
+            }
+        }
+        if (dictionary.tags.spacers.includes(letter)) {
+            width = letterWidth / 2
+        } // MT
+        if (dictionary.tags.hbConnectors.includes(letter)) {
+            if (['b', 'h'].includes(Typewriter.getPrev()?.key)) {
+                // dont want to make ligatures for each ~ overlay is fine
+                // still need to sub 'ha' or 'bt or whatever into history
+            }
+        }
+
+        else { letter = dictionary[letter] ? letter : null }
+        return [letter, width, height]
+    },
+
+
+    spacing(letter) {
+        let [x, y] = [Typewriter.xCoord, Typewriter.yCoord]
+
+        if (dictionary.tags.supershort.includes(letter)) {
+            if (dictionary.tags.antisupershort.includes(Typewriter.getPrev()?.key)) {
+                x -= lineWidth
+            }
+        }
+        else if (dictionary.tags.short.includes(letter)) {
+            if (dictionary.tags.antishort.includes(Typewriter.getPrev()?.key)) {
+                x -= lineWidth
+            }
+        }
+
+        // ligatures = more space, i.e. if prev letter.length > 1, xcoord++
+        
+        return [x, y]
+    },
+}
+
+
+
+
+
+
+
+
+
+
+
+
 const printer = {
     xMin: rad,
-    xMax: letterWidth - rad,
+    xMax(width) { return width - rad },
     yMin: rad,
-    yMax: letterHeight - rad,
+    yMax(height) { return height - rad },
     storey1(c) { return !!(c.y < centerY) },
     
-    print(letter) {
-        let cnv = document.createElement('canvas')
-        cnv.width = letterWidth
+    print(letter, width, canvas) {
+        let cnv = canvas || document.createElement('canvas')
+        cnv.width = width || letterWidth
         cnv.height = letterHeight
         let ncx = cnv.getContext('2d')
         ncx.lineWidth = lineWidth
         ncx.lineCap = 'square'
         ncx.lineJoin = 'miter'
+        
+        if (canvas) {
+            let grad = ncx.createLinearGradient(0, 0, 0, cnv.height)
+            grad.addColorStop(0, '#ccf')
+            grad.addColorStop(.5, '#aad')
+            ncx.strokeStyle = grad
+        }
 
         this.makePath(ncx, letter)
-        if (letter.match(/[a-zA-Z]/)) {
+        
+        if (letter.match(/[\w]/)) {
             ncx.stroke()
         } else {
             ncx.fill()
@@ -181,7 +274,9 @@ const printer = {
         ctx.moveTo(c.x, c.y)
     },
     resetY(ctx, c) {
-        c.y = this.yMin
+        if (this.storey1(c)) {
+            c.y = this.yMin
+        } else { c.y = centerY }
         ctx.moveTo(c.x, c.y)
     },
     resetX(ctx, c) {
@@ -189,7 +284,7 @@ const printer = {
         ctx.moveTo(c.x, c.y)
     },
     maxX(ctx, c) {
-        c.x = this.xMax
+        c.x = this.xMax(ctx.canvas.width)
         ctx.moveTo(c.x, c.y)
     },
     skip(ctx, c) {
@@ -197,13 +292,13 @@ const printer = {
             c.y = centerY
         }
         else if (c.y === centerY) {
-            c.y = this.yMax
+            c.y = this.yMax(ctx.canvas.height)
         }
         c.x = this.xMin
         ctx.moveTo(c.x, c.y)
     },
     bar(ctx, c) {
-        c.x = this.xMax
+        c.x = this.xMax(ctx.canvas.width)
         ctx.lineTo(c.x, c.y)
     },
     line(ctx, c) {
@@ -211,7 +306,7 @@ const printer = {
             c.y = centerY
         }
         else if (c.y === centerY) {
-            c.y = this.yMax
+            c.y = this.yMax(ctx.canvas.height)
         }
         ctx.lineTo(c.x, c.y)
     },
@@ -241,8 +336,8 @@ const printer = {
                 c.y = centerY
             } // SV
             else {
-                cpy = this.yMax 
-                c.y = this.yMax
+                cpy = this.yMax(ctx.canvas.height)
+                c.y = this.yMax(ctx.canvas.height)
             } // BHJOYZ
         }
         else {      
@@ -253,28 +348,51 @@ const printer = {
             } // Q
             else {                  
                 cpy = centerY
-                c.y = this.yMax - lineWidth
+                c.y = this.yMax(ctx.canvas.height) - lineWidth
             } // X
         }
 
         if (underhand) {
-            if (L2R) { c.x = this.xMax - lineWidth } // JOYZ
+            if (L2R) { c.x = this.xMax(ctx.canvas.width) - lineWidth } // JOYZ
             else { c.x = this.xMin + lineWidth } // BHSV
         } else {
             c.x = this.xMin 
         } // QX
         ctx.quadraticCurveTo(cpx, cpy, c.x, c.y)
 
-        if (L2R) { c.x = this.xMax } 
+        if (L2R) { c.x = this.xMax(ctx.canvas.width) } 
             else { c.x = this.xMin }
         if (firstStory) { c.y = centerY } 
-                   else { c.y = this.yMax }
+                   else { c.y = this.yMax(ctx.canvas.height) }
         ctx.lineTo(c.x, c.y)
     },
     // xFix(ctx, c) {
     //     c.x = letterWidth
     //     ctx.lineTo(c.x, c.y)
     // },
+    shortCurve(ctx, c) {
+        let cpx = c.x
+        let cpy = this.yMax(ctx.canvas.height) - rad
+        let cpx2 = c.x - rad
+        let cpy2 = this.yMax(ctx.canvas.height)
+        c.x = centerX * ligModifier
+        c.y = this.yMax(ctx.canvas.height)
+        // ctx.bezierCurveTo(cpx, cpy, cpx2, cpy2, c.x, c.y)
+        ctx.quadraticCurveTo(cpx, cpy, c.x, c.y)
+    },
+    zhCurve(ctx, c) {
+        let cpx = c.x
+        let cpy = this.yMax(ctx.canvas.height) * 1.142857 + 1
+        let cpx2 = this.xMin
+        let cpy2 = this.yMax(ctx.canvas.height) * 1.142857 + 1
+        c.x = this.xMin
+        c.y = centerY
+        ctx.bezierCurveTo(cpx, cpy, cpx2, cpy2, c.x, c.y)
+    },
+    xSpace(ctx, c) {
+        c.x = centerX * ligModifier
+        ctx.moveTo(c.x, c.y)
+    },
     shFix(ctx, c) {
         c.x = 0
         ctx.lineTo(c.x, c.y)
@@ -283,7 +401,24 @@ const printer = {
 
 
 
+
+
+
+
+
+
+
+
 const dictionary = {
+    tags: {
+        short: ['a', 'e', 'i', 'n', 'r', 's', 't'],
+        antishort: ['g', 'o'],
+        supershort: ['e'],
+        antisupershort: ['b', 'd', 'k', 'n', 'x', 'y'],
+        spacers: ['m', 't'],
+        hLigatures: ['c', 'g', 'k', 'p', 's', 't', 'w', 'z'],
+        hbConnectors: ['a', 'j', 'n', 'o', 'r', 't', 'y'], // D? L?
+    },
     a() {
         return function(ctx, c) {
             printer.origin(ctx, c)
@@ -526,20 +661,23 @@ const dictionary = {
 
 
     1() {
-        return function(ctx, c) {
-            printer.origin(ctx, c)
-            printer.dot(ctx, c)
-        }
+        return this.e()
+        // return function(ctx, c) {
+        //     printer.origin(ctx, c)
+        //     printer.dot(ctx, c)
+        // }
     },
     2() {
-        return function(ctx, c) {
-            printer.origin(ctx, c)
-            printer.dot(ctx, c)
-            printer.skip(ctx, c)
-            printer.dot(ctx, c)
-        }
+        return this.i()
+        // return function(ctx, c) {
+        //     printer.origin(ctx, c)
+        //     printer.dot(ctx, c)
+        //     printer.skip(ctx, c)
+        //     printer.dot(ctx, c)
+        // }
     },
     3() {
+        // return this.s()
         return function(ctx, c) {
             printer.origin(ctx, c)
             printer.bar(ctx, c)
@@ -549,20 +687,70 @@ const dictionary = {
             printer.bar(ctx, c)
         }
     },
-    C() {
+    4() { return this.t() },
+    5() { return this.n() },
+    6() { return this.d() },
+    7() { return this.b() },
+    8() { return this.m() },
+    9() { return this.a() },
+    0() { return this.o() },
+
+    ch() {
         return function(ctx, c) {
             printer.origin(ctx, c)
             printer.bar(ctx, c)
             printer.resetX(ctx, c)
             printer.line(ctx, c)
             printer.bar(ctx, c)
-            // draw curve
+            printer.shortCurve(ctx, c)
             printer.resetX(ctx, c)
-            // reset y   
+            printer.resetY(ctx, c)
             printer.line(ctx, c)
         }  
     },
-    S() {
+    gh() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.xSpace(ctx, c)
+            printer.bar(ctx, c)
+            printer.resetX(ctx, c)
+            printer.line(ctx, c)
+            printer.xSpace(ctx, c)
+            printer.bar(ctx, c)
+            printer.curve(ctx, c, 's')
+            printer.resetY(ctx, c)
+            printer.line(ctx, c)
+        }  
+    },
+    kh() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.xSpace(ctx, c)
+            printer.bar(ctx, c)
+            printer.resetX(ctx, c)
+            printer.line(ctx, c)
+            printer.bar(ctx, c)
+            printer.shortCurve(ctx, c, 's')
+            printer.resetX(ctx, c)
+            printer.resetY(ctx, c)
+            printer.line(ctx, c)
+        }  
+    },
+    ph() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.bar(ctx, c)
+            printer.resetX(ctx, c)
+            printer.line(ctx, c)
+            printer.xSpace(ctx, c)
+            printer.bar(ctx, c)
+            printer.curve(ctx, c, 's')
+            printer.resetX(ctx, c)
+            printer.resetY(ctx, c)
+            printer.line(ctx, c)
+        }  
+    },
+    sh() {
         return function(ctx, c) {
             printer.origin(ctx, c)
             printer.bar(ctx, c)
@@ -572,7 +760,7 @@ const dictionary = {
             printer.curve(ctx, c, 's')
         } 
     },
-    T() {
+    th() {
         return function(ctx, c) {
             printer.origin(ctx, c)
             printer.bar(ctx, c)
@@ -580,20 +768,58 @@ const dictionary = {
             printer.line(ctx, c)
             printer.bar(ctx, c)
             printer.curve(ctx, c, 's')
+        } 
+    },
+    wh() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.bar(ctx, c)
+            printer.resetX(ctx, c)
+            printer.line(ctx, c)
+            printer.xSpace(ctx, c)
+            printer.bar(ctx, c)
+            printer.shortCurve(ctx, c, 's')
+            printer.resetX(ctx, c)
+            printer.resetY(ctx, c)
+            printer.line(ctx, c)
         }  
     },
- 
+    zh() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.bar(ctx, c)
+            printer.skip(ctx, c)
+            printer.bar(ctx, c)
+            printer.zhCurve(ctx, c)
+        }  
+    },
+    _() {
+        return function(ctx, c) {
+            printer.origin(ctx, c)
+            printer.skip(ctx, c)
+            printer.skip(ctx, c)
+            printer.bar(ctx, c)
+        }  
+    },
 }
 
 // tests
-let strings = ['wijit', '']
+let strings = ['_wijit', '']
+let scaler = 0.5
 for (const string of strings) {
-    if (!string) {
-        Typewriter.yCoord -= lineHeight
-    }
+    if (!string) { Typewriter.yCoord -= Math.round(lineHeight * scaler) }
     for (let i = 0; i < string.length; i++) {
-        let temp = printer.print(string[i])
-        CX.drawImage(temp, letterWidth * i, Typewriter.yCoord, letterWidth, letterHeight)
+        let canvas = document.createElement('canvas')
+        // let context = canvas.getContext('2d')
+        // context.lineWidth = 2
+        let [temp, width, height] = carriage.resolve(string[i])
+        canvas.width = width 
+        canvas.height = height
+        
+        let cnv = printer.print(temp, width, canvas)
+        CX.drawImage(cnv, Typewriter.xCoord, Typewriter.yCoord, width * scaler, height * scaler)
+        Typewriter.add = {key: string[i], w: width * scaler, x: Typewriter.xCoord, y: Typewriter.yCoord}
+        Typewriter.xCoord += width * scaler
     }
-    Typewriter.yCoord += lineHeight
+    Typewriter.enter(scaler)
 }
