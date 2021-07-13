@@ -1034,6 +1034,87 @@ const dictionary = {
 
 
 
+// curve(ctx, c, type) {
+//     const t = {
+//         j: { x: 1, y: 1, z: 1 },
+//         s: { x: 0, y: 1, z: 1 },
+//         q: { x: 0, y: 1, z: 0},
+//     }
+
+//     let L2R = t[type].x
+//     let firstStory = this.storey1(c)
+//     let underhand = t[type].z
+
+//     if (t[type].z) { c.y = c.y + lineWidth }
+//     else { c.x = c.x - lineWidth }
+//     ctx.lineTo(c.x, c.y)
+
+//     let [cpx, cpy] = [0, 0]
+//     if (underhand) {   
+//         cpx = c.x
+//         if (firstStory) {   
+//             cpy = centerY
+//             c.y = centerY
+//         } // SV
+//         else {
+//             cpy = this.yMax(ctx.canvas.height)
+//             c.y = this.yMax(ctx.canvas.height)
+//         } // BHJOYZ
+//     }
+//     else {      
+//         cpx = this.xMin
+//         if (firstStory) {   
+//             cpy = c.y
+//             c.y = centerY - lineWidth
+//         } // Q
+//         else {                  
+//             cpy = centerY
+//             c.y = this.yMax(ctx.canvas.height) - lineWidth
+//         } // X
+//     }
+
+//     if (underhand) {
+//         if (L2R) { c.x = this.xMax(ctx.canvas.width) - lineWidth } // JOYZ
+//         else { c.x = this.xMin + lineWidth } // BHSV
+//     } else {
+//         c.x = this.xMin 
+//     } // QX
+//     ctx.quadraticCurveTo(cpx, cpy, c.x, c.y)
+
+//     if (L2R) { c.x = this.xMax(ctx.canvas.width) } 
+//         else { c.x = this.xMin }
+//     if (firstStory) { c.y = centerY } 
+//                else { c.y = this.yMax(ctx.canvas.height) }
+//     ctx.lineTo(c.x, c.y)
+// },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
