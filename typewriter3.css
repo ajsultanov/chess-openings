@@ -94,6 +94,15 @@ a {
     padding: 5px 10px;
     text-align: right;
     grid-area: right;
+
+}
+#options {
+    margin: 0;
+    padding: 0;
+}
+#messages {
+    margin: 0;
+    padding: 0;
 }
 #canvas {
     padding: 10px;
