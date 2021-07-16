@@ -5,6 +5,9 @@ const   text = document.getElementById('text')
         text.addEventListener('keydown', e => {
             console.log(text.value)
         })
+        text.addEventListener('keyup', e => {
+                console.log(text.value)
+            })
         text.focus()
 const   star = document.getElementById('star')
         star.addEventListener('click', () => { 

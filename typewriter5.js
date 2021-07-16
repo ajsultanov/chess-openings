@@ -14,10 +14,13 @@
 ///     ligatures will go up to last line if at the beginning of a new line
 ///     ligatures and autospace not playing nice
 
+///     fix radio buttons - connect to js
+
 ///     niqqud
 ///     breaks before s? .....?
 
-let     dictionary = () => main
+let     dictionary = () => io
+
 const   title = document.getElementById('title')
         title.addEventListener('click', () => console.table(Typewriter.history))
 const   text = document.getElementById('text')
@@ -31,15 +34,7 @@ const   optInput = document.getElementById('options')
         optInput.addEventListener('input', e => { 
             let val = e.target.value
             // Typewriter.clear()
-            if (val === 'abc') {
-                dictionary = () => main
-            }
-            if (val === 'io') {
-                dictionary = () => io
-            }
-            if (val === 'yd') {
-                dictionary = () => yd
-            }
+            dictionary = () => dix[val]
          })
 const   messages = document.getElementById('messages')
         messages.addEventListener('click', () => { console.log('message')})
@@ -64,12 +59,10 @@ const   settings = {
         }
     },
     padding: 0,
-
     get ligWidth() {    return this.letterWidth * this.ligModifier },
     get hwRatio() {     return this.letterHeight / this.letterWidth },
-    get lineWidth() {   return Math.min(this.letterWidth / 5, this.letterHeight / 8) },
+    get lineWidth() {   return Math.min(this.letterWidth / 4, this.letterHeight / 7) },
     get lineHeight() {  return this.letterHeight * (1 + 2 / 5) },
-
     get middle() {      return this.letterHeight * 5 / 12 },
     get centerX() {     return this.letterWidth / 2 },
     get centerY() {     return this.letterWidth / 2 },
@@ -120,6 +113,7 @@ const Typewriter = {
     },
     
     control(key, settings) { 
+        // console.log(this.xCoord, this.yCoord)
         // let letterWidth = settings.letterWidth || 64
         // let letterHeight = settings.letterHeight || 112
         // let scale = settings.scaleFactor || 1
@@ -160,6 +154,20 @@ const Typewriter = {
                 // get letter width
                 let [letter, width, height] = carriage.resolve(key)
                 // console.log(letter, width, height)
+
+                // CX.fillStyle = '#ffff0080'
+                // CX.fillRect(
+                //     this.xCoord, 
+                //     this.yCoord, 
+                //     width, 
+                //     height)
+                // CX.fillStyle = '#ffa500a0'
+                // CX.fillRect(
+                //     this.xCoord + settings.lineWidth + 2, 
+                //     this.yCoord + settings.lineWidth + 2, 
+                //     width - (settings.lineWidth * 2) - 4, 
+                //     height - (settings.lineWidth * 2) - 4
+                // )
 
                 let cnv = printer.print(letter, width)
                 
@@ -206,8 +214,13 @@ const Typewriter = {
         let last = this.getPrev()
         // console.log(last)
         if (last) {
-            this.xCoord = last.x + last.w
             this.yCoord = last.y
+            if (last.key !== 'enter') {
+                this.xCoord = last.x + last.w + (dictionary()?.autospace?.x || 0)
+            } else {
+                this.xCoord = 0
+                this.yCoord += settings.lineHeight
+            }
         } else if (removed) {
             this.xCoord = removed.x
             this.yCoord = removed.y
@@ -215,6 +228,7 @@ const Typewriter = {
             this.xCoord = 0
             this.yCoord = 0
         }
+        // console.log(this.xCoord, this.yCoord)
     },
     enter() {
         this.add = {key: 'enter', w: 0, x: this.xCoord, y: this.yCoord}
@@ -233,7 +247,7 @@ const Typewriter = {
 }
 
 
-
+// working
 const carriage = {
     noLigFlag: false,
 
@@ -243,25 +257,25 @@ const carriage = {
         let letter = key
 
         if (dictionary()?.tags?.supershort.includes(letter)) {
-            height = settings.lineWidth
-        }
-        else if (dictionary()?.tags?.short.includes(letter)) {
+            height = settings.lineWidth         // e
+        } else if (dictionary()?.tags?.short.includes(letter)) {
             height = (settings.letterHeight + settings.lineWidth) / 2
-        }
+        }                                       // a, i, n, r, s, t
         
-        if (['e', 'i'].includes(letter)) {
-            // width = settings.letterWidth - settings.lineWidth
+        if (['e', 'i'].includes(letter) && dictionary()?.shortenEI) {
+            width = settings.letterWidth - settings.lineWidth
         }
 
         if (dictionary()?.tags?.spacers.includes(letter)) {
-            width = settings.letterWidth / 2 
+            width = settings.letterWidth / 2    // m, t
         }
 
-        if (!this.noLigFlag) {
+        // substituting ligatures
+        if (this.noLigFlag === false) {
             if (key === 'h') {
                 let lig = `${Typewriter.getPrev()?.key}h`
                 if (dictionary()[lig]) {
-                    letter = lig
+                    letter = lig                // ch, gh, kh, ph, sh, th, wh, zh
                     Typewriter.backspace()
                     if (!['sh', 'th'].includes(letter)) {
                         width = width * settings.ligModifier
@@ -271,16 +285,15 @@ const carriage = {
             if (key === 'o') {
                 let lig = `${Typewriter.getPrev()?.key}o`
                 if (dictionary()[lig]) {
-                    letter = lig
+                    letter = lig                // oo
                     Typewriter.backspace()
                     width = width * settings.ligModifier
                 }
             }
             else if (dictionary()[`${Typewriter.getPrev()?.key}${letter}`]) {
-                console.log('ligfound')
                 letter = `${Typewriter.getPrev()?.key}${letter}`
                 Typewriter.backspace()
-                width = settings.letterWidth
+                width = settings.letterWidth    // ee, ii
             }
         }
         else { 
@@ -290,76 +303,79 @@ const carriage = {
         return [letter, width, height]
     },
 
-    // working
     spacing(letter) {
         // console.log(letter)
         let nAdjustment = settings.lineWidth * 3 / 2
         let pAdjustment = settings.lineWidth
         let [x, y] = [Typewriter.xCoord, Typewriter.yCoord]
 
+        // spacing dots
         if (['E', 'I', 'S'].includes(letter)) {
             if (dictionary()[Typewriter.getPrev()?.key]){
                 if (!dictionary()?.tags?.spacers.includes(Typewriter.getPrev()?.key)) {
                     if (letter === 'E' 
                     && dictionary()?.tags?.antisupershort.includes(Typewriter.getPrev()?.key)
                     || dictionary()?.tags?.antishort.includes(Typewriter.getPrev()?.key)) {
-                        x -= pAdjustment
+                        x -= pAdjustment            // bE, dE, gE, kE, nE, oE, xE, yE
                     } else if (letter === 'I') {
                         if (dictionary()?.tags?.antishort.includes(Typewriter.getPrev()?.key)) {
-                            x -= pAdjustment
+                            x -= pAdjustment        // gI, oI
                         }
                         else if (Typewriter.getPrev()?.key === 'e') {
-                            x -= pAdjustment / 2
+                            x -= pAdjustment / 2    // eI
                         } else {
-                            x += pAdjustment
+                            x += pAdjustment        // all -I except eI, gI, mI, oI, tI
                         }
                     } else {
-                        x += pAdjustment
+                        x += pAdjustment            // all -S except mS, tS
                     }
                 }
             }
         }
 
-        // a, e, i, n, r, s, t
+        // compacting a, e, i, n, r, s, t
         if (dictionary()?.tags?.short.includes(letter)) {
             if (dictionary()?.tags?.supershort.includes(letter)) {
                 if (dictionary()?.tags?.antisupershort.includes(Typewriter.getPrev()?.key)
                 || dictionary()?.tags?.antishort.includes(Typewriter.getPrev()?.key)
                 || Typewriter.getPrev()?.key === 'I') {
-                    x -= nAdjustment
+                    x -= nAdjustment    // be, de, ge, ie, ke, ne, oe, xe, ye
                 } 
                 else if (dictionary()?.tags?.eSpace.includes(Typewriter.getPrev()?.key)) {
-                    x += pAdjustment
+                    x += pAdjustment    // ae, ce, ee, fe, he, je, le, pe, qe, re, se, ue, ve, we, ze
                 }
             }
             else if (['i'].includes(letter)
             && dictionary()?.tags?.iSpace.includes(Typewriter.getPrev()?.key)) {
-                x += pAdjustment
+                x += pAdjustment        // all -i except ei, gi, mi, oi, ti
             }
             else if (['s'].includes(letter)
             && dictionary()?.tags?.sCSpace.includes(Typewriter.getPrev()?.key)) {
-                x += pAdjustment
+                x += pAdjustment        // as, cs, es, fs, hs, is, js, ls, ps, qs, rs, us, wx, zs
             }
             else if (dictionary()?.tags?.antishort.includes(Typewriter.getPrev()?.key)) {
                 // x -= nAdjustment
-                x -= pAdjustment
+                x -= pAdjustment        // ga, oa, gi, oi, gn, on, gr, or, gt, ot
             }
         }
 
-        // h, b - a, j, n, o, r, t, y
+        // compacting h, b
         if (dictionary()?.tags?.hbConnectors.includes(letter)) {
             if (['b', 'h'].includes(Typewriter.getPrev()?.key)) {
-                x -= pAdjustment
+                x -= pAdjustment        // ba, bj, bn, bo, br, bt, by, ha, hj, hn, ho, hr, ht, hy
                 this.noLigFlag = true
             }
         }
-        // c, g, k, p, s, t, w, z - h
+        // space after c, g, k, p, s, t, w, z - h
         if (dictionary()?.tags?.hLigatures.includes(Typewriter.getPrev()?.key)) {
             if (letter === 't'
             && ['ch', 'gh'].includes(Typewriter.getPrev()?.key)) {
-                x -= pAdjustment
+                x -= pAdjustment        // cht, ght
+                this.noLigFlag = true
             }
-            else { x += pAdjustment }
+            else { 
+                x += pAdjustment        // ch-, gh-, kh-, ph-, sh-, th-, wh-, zh-
+            }
         }
 
 
@@ -396,7 +412,7 @@ const printer = {
         let pcx = cnv.getContext('2d')
         pcx.lineWidth = settings.lineWidth
         pcx.lineCap = 'square'
-        pcx.lineJoin = 'miter'
+        pcx.lineJoin = ''
         // pcx.lineCap = 'round'
         // pcx.lineJoin = 'round'
         
@@ -409,15 +425,18 @@ const printer = {
         }
 
         pcx.beginPath()
+
         let {x, y} = this.zone(1, {width:cnv.width})
         pcx.moveTo(x, y)
+        // pcx.fillStyle = '#0f04'
+        // pcx.fillRect(x, y, cnv.width - settings.lineWidth, cnv.height - settings.lineWidth)
         dictionary()[letter]().forEach(el => {
             // console.log(el)
             let op = el.shift()
             let args = [...el]
             // or let func = el[0]
             //    let args = el.slice(1)
-            op.call(this, pcx, ...args, {offset: settings.offset(), padding: settings.padding})
+            op.call(this, pcx, ...args, {width: cnv.width, offset: settings.offset(), padding: settings.padding})
         })
 
         if ( dictionary()[letter]().some(e => e[0].name === 'dot') ) {
@@ -433,7 +452,7 @@ const printer = {
         let width = options?.width || settings.letterWidth
         let offset = options?.offset || {x:0, y:0}
         let padding = options?.padding || 0
-        let {x, y} = this.zone(point, {width:width, offset:offset, padding:padding})
+        let {x, y} = this.grid(point, {width:width, offset:offset, padding:padding})
         // console.log(x, y)
 
         ctx.moveTo(x, y)
@@ -442,25 +461,24 @@ const printer = {
         let width = options?.width || settings.letterWidth
         let offset = options?.offset || {x:0, y:0}
         let padding = options?.padding || 0
-        let {x, y} = this.zone(start, {width:width, offset:offset, padding:padding})
-        let {x:xEnd, y:yEnd} = this.zone(end, {width:width, offset: {x:0, y:0}})
+        let {x, y} = this.grid(start, {width:width, offset:offset, padding:padding})
+        let {x:xEnd, y:yEnd} = this.grid(end, {width:width, offset: {x:0, y:0}})
 
         ctx.moveTo(x, y)
         ctx.lineTo(xEnd, yEnd)
     },
     line(ctx, point, options) {
+        // console.log(options?.width)
         let width = options?.width || settings.letterWidth
         let offset = options?.offset || {x:0, y:0}
         let padding = options?.padding || 0
-        let {x, y} = this.zone(point, {width:width, offset:offset, padding:padding})
-        // let {x:xEnd, y:yEnd} = this.zone(start + end, {width:width, offset: {x:0, y:0}})
+        let {x, y} = this.grid(point, {width:width, offset:offset, padding:padding})
         // console.log(x, y)
 
         ctx.lineTo(x, y)
-        // ctx.lineTo(xEnd, yEnd)
     },
     dot(ctx, point, options) {
-        let {x, y} = this.zone(point)
+        let {x, y} = this.grid(point, {width: options.width})
         ctx.arc(x, y, settings.rad, 0, Math.PI * 2 )
     },
     square(ctx, point, options) {
@@ -485,12 +503,21 @@ const printer = {
         let control = start + (t[type].uh 
             ? 3 
             : t[type].lr ? 2 : -2)
-        let {x, y} = this.zone(start, {width:width})
-        let {x:x2, y:y2} = this.zone(end, {width:width})
-        let {x:cpx, y:cpy} = this.zone(control, {width:width})
+        let {x, y} = this.grid(start, {width:width})
+        let {x:x2, y:y2} = this.grid(end, {width:width})
+        let {x:cpx, y:cpy} = this.grid(control, {width:width})
 
         ctx.moveTo(x, y)
         ctx.quadraticCurveTo(cpx, cpy, x2, y2)
+    },
+    curve2(ctx, point, cp, options) {
+        let width = options.width || settings.letterWidth
+
+        let {x, y} = this.grid(point, {width:width})
+        let {x:cpx, y:cpy} = this.grid(cp, {width:width})
+
+        // ctx.moveTo(x, y)
+        ctx.quadraticCurveTo(cpx, cpy, x, y)
     },
     betterCurve(ctx, start, end, cp, options) {
         let width = options.width || settings.letterWidth
@@ -511,7 +538,7 @@ const printer = {
         let {x, y} = this.grid(start, {width:width})
         let {x:xEnd, y:yEnd} = this.grid(end, {width:width})
 
-        ctx.moveTo(x, y)
+        ctx.lineTo(x, y)
         ctx.lineTo(xEnd, yEnd)
     },
 
@@ -570,8 +597,8 @@ const printer = {
         let width = options.width || settings.letterWidth
         let height = options.widheightth || settings.letterHeight
         let [x, y] = point || [0, 0]
-        let xOffset = x * (width - settings.lineWidth) / 12
-        let yOffset = y * (height - settings.lineWidth) / 12
+        let xOffset = x * (width - settings.lineWidth) / 24
+        let yOffset = y * (height - settings.lineWidth) / 24
 
         return {
             x: settings.rad + xOffset,
@@ -595,155 +622,203 @@ const printer = {
 
 
 
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+xyz
+
+
+
+
+
+
+
+
+*/ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 var main = {
     a() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 4]
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 12]]
         ] 
     },
     b() {
         return [
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.betterCurve, [12, 6], [0, 12], [12, 12]]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.curve2, [0, 24], [24, 24]]
         ] 
     },
     c() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 7],
-            [printer.moveLine, 4, 6],
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.moveLine, [0, 12], [24, 12]],
         ] 
     },
     d() {
         return [
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.moveLine, 7, 9],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.moveLine, [0, 24], [24, 24]],
 
         ]   
     },
     e() {
         return [
-            [printer.line, 3]
+            [printer.line, [24, 0]]
         ]   
     },
     f() {
         return [
-            [printer.line, 3],
-            [printer.moveLine, 6, 4],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.moveLine, [24, 12], [0, 12]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     g() {
         return [
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ] 
     },
     h() {
         return [
-            [printer.line, 3],
-            [printer.moveLine, 4, 6],
-            [printer.curve, 6, 's']
+            [printer.line, [24, 0]],
+            [printer.moveLine, [0, 12], [24, 12]],
+            [printer.curve2, [0, 24], [24, 24]]
         ]     
     },
     i() {
         return [
-            [printer.line, 3],
-            [printer.moveLine, 4, 6],
+            [printer.line, [24, 0]],
+            [printer.moveLine, [0, 12], [24, 12]],
         ]    
     },
     j() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 4],
-            [printer.curve, 4, 'j']
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]]
         ] 
     },
     k() {
         return [
-            [printer.line, 7],
-            [printer.moveLine, 4, 6],
+            [printer.line, [0, 24]],
+            [printer.moveLine, [0, 12], [24, 12]],
         ]   
     },
     l() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 4],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.moveLine, [0, 24], [24, 24]],
         ]  
     },
     m() {
         return [
-            [printer.line, 7]
+            [printer.line, [0, 24]]
         ]   
     },
     n() {
         return [
-            [printer.line, 4],
-            [printer.line, 6]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     o() {
         return [
-            [printer.line, 4],
-            [printer.curve, 4, 'j']
+            [printer.line, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]]
         ]   
     },
     p() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     q() {
         return [
-            [printer.curve, 3, 'q'],
-            [printer.moveLine, 6, 4],
-            [printer.line, 7]
+            [printer.move, [24, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.moveLine, [24, 12], [0, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     r() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 4],
-            [printer.line, 6]
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     s() {
         return [
-            [printer.line, 3],
-            [printer.curve, 3, 's']
+            [printer.line, [24, 0]],
+            [printer.curve2, [0, 12], [24, 12]]
         ]    
     },
     t() {
         return [
-            [printer.line, 4]
+            [printer.line, [0, 12]]
         ]   
     },
     u() {
         return [
-            [printer.line, 3],
-            [printer.moveLine, 6, 4],
-            [printer.line, 7]
+            [printer.line, [24, 0]],
+            [printer.moveLine, [24, 12], [0, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     v() {
         return [
-            [printer.line, 3],
-            [printer.curve, 3, 's'],
-            [printer.line, 7]
+            [printer.line, [24, 0]],
+            [printer.curve2, [0, 12], [24, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     w() {
         return [
-            [printer.moveLine, 3, 1],
-            [printer.line, 7]
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 24]]
         ]   
     },
     x() {
@@ -768,157 +843,170 @@ var main = {
                     //     printer.curve(1, 'j', ctx)
                     //     printer.curve(4, 'q', ctx)
                     // }
-                    return [
-                        [printer.curve, 1, 'j'],
-                        [printer.curve, 6, 'q']
-                    ]   
-                },
-                y() {
-                    return [
-                        [printer.line, 4],
-                        [printer.line, 6],
-                        [printer.curve, 4, 'j']
-                    ]    
-                },
-                z() {
-                    return [
-                        [printer.line, 3],
-                        [printer.moveLine, 4, 6],
-                        [printer.curve, 4, 'j']
-                    ]     
-                },
-                
-                
-                
-                
-                
-                1() { return this.e() },
-                2() { return this.i() },
-                3() {
-                    return [
-                        [printer.line, 1, 2],
-                        [printer.line, 4, 2],
-                        [printer.line, 7, 2]
-                    ]  
-                },
-                4() { return this.t() },
-                5() { return this.n() },
-                6() { return this.d() },
-                7() { return this.b() },
-                8() { return this.m() },
-                9() { return this.a() },
-                0() { return this.o() },
-                
-                ch() {
-                    return [
-                        [printer.moveLine, 3, 1],
-                        [printer.line, 7],
-                        [printer.moveLine, 4, 6],
-                        [printer.curve, 6, 'ch'],
-                    ]
-                },
-                ee() {
-                    return [
-                        [printer.line, 3]    // maybe keep ??
-                    ]
-                },
-                gh() {
-                    return [
-                        [printer.line, 7],
-                        [printer.line, 8],
-                        [printer.moveLine, 2, 3],
-                        [printer.moveLine, 5, 6],
-                        [printer.curve, 6, 'ch'],
-                    ]  
-                },
-                ii() {
-                    return [
-                        [printer.line, 3],   // maybe keep
-                        [printer.moveLine, 4, 6],
-                    ]
-                },
-                kh() {
-                    return [
-                        [printer.line, 7],
-                        [printer.moveLine, 2, 3],
-                        [printer.moveLine, 4, 6],
-                        [printer.curve, 6, 'ch']
-                    ]   
-                },
-                oo() {
-                    return [
-                        [printer.line, 4],
-                        [printer.curve, 4, 'zh'],
-                        [printer.moveLine, 2, 5],
-                        [printer.curve, 5, 'zh']
-                    ]   
-                },
-                ph() {
-                    return [
-                        [printer.moveLine, 5, 6],
-                        [printer.curve, 6, 'ch'],
-                        [printer.line, 7],
-                        [printer.line, 1],
-                        [printer.line, 3]
-                    ]  
-                },
-                sh() {
-                    return [
-                        [printer.line, 3],
-                        [printer.curve, 3, 's'],
-                        [printer.line, 6],
-                        [printer.curve, 6, 's']
-                    ]  
-                },
-                th() {
-                    return [
-                        [printer.moveLine, 3, 1],
-                        [printer.line, 4],
-                        [printer.line, 6],
-                        [printer.curve, 6, 's']
-                    ] 
-                },
-                wh() {
-                    return [
-                        [printer.moveLine, 3, 1],
-                        [printer.line, 7],
-                        [printer.moveLine, 5, 6],
-                        [printer.curve, 6, 'ch']
-                    ]  
-                },
-                zh() {
-                    return [
-                        [printer.line, 3],
-                        [printer.moveLine, 4, 6],
-                        [printer.curve, 4, 'zh'],
-                        [printer.curve, 6, 'ch'],
-                    ]  
+        // lol
+        // return [
+        //     [printer.curve, [0, 0], 'j'],
+        //     [printer.curve, [24, 12], 'q']
+        // ]   
+        return [
+            [printer.curve2, [24, 12], [0, 12]],
+            [printer.move, [24, 12]],
+            [printer.curve2, [0, 24], [0, 12]]
+        ]
+    },
+    y() {
+        return [
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]]
+        ]    
+    },
+    z() {
+        return [
+            [printer.line, [24, 0]],
+            [printer.moveLine, [0, 12], [24, 12]],
+            [printer.move, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]]
+        ]     
+    },
+
+
+
+
+
+    1() { return this.e() },
+    2() { return this.i() },
+    3() {
+        return [
+            [printer.line, [24, 0]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]],
+        ]  
+    },
+    4() { return this.t() },
+    5() { return this.n() },
+    6() { return this.d() },
+    7() { return this.b() },
+    8() { return this.m() },
+    9() { return this.a() },
+    0() { return this.o() },
+
+    ch() {
+        return [
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.moveLine, [0, 12], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+        ]
+    },
+    ee() {
+        return [
+            [printer.line, [24, 0]]    // maybe keep ??
+        ]
+    },
+    gh() {
+        return [
+            [printer.line, [0, 24]],
+            [printer.line, [12, 24]],
+            [printer.moveLine, [12, 0], [24, 0]],
+            [printer.moveLine, [12, 12], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+        ]  
+    },
+    ii() {
+        return [
+            [printer.line, [24, 0]],   // maybe keep
+            [printer.moveLine, [0, 12], [24, 12]],
+        ]
+    },
+    kh() {
+        return [
+            [printer.line, [0, 24]],
+            [printer.moveLine, [12, 0], [24, 0]],
+            [printer.moveLine, [0, 12], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+        ]   
+    },
+    oo() {
+        return [
+            [printer.line, [0, 12]],
+            [printer.curve, [0, 12], 'zh'],
+            [printer.moveLine, [12, 0], [12, 12]],
+            [printer.curve, [12, 12], 'zh']
+        ]   
+    },
+    ph() {
+        return [
+            [printer.moveLine, [12, 12], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+            [printer.line, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [24, 0]]
+        ]  
+    },
+    sh() {
+        return [
+            [printer.line, [24, 0]],
+            [printer.curve2, [0, 12], [24, 12]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.curve2, [0, 24], [24, 24]],
+        ]  
+    },
+    th() {
+        return [
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.curve2, [0, 24], [24, 24]],
+        ] 
+    },
+    wh() {
+        return [
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.moveLine, [12, 12], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+        ]  
+    },
+    zh() {
+        return [
+            [printer.line, [24, 0]],
+            [printer.moveLine, [0, 12], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+            [printer.curve2, [0, 12], [0, 24]],
+        ]  
     },
     E() {
         return [
-            [printer.dot, 1],
+            [printer.dot, [0, 0]],
         ]
     },
     I() {
         return [
-            [printer.dot, 1],
-            [printer.move, 4],
-            [printer.dot, 4]
+            [printer.dot, [0, 0]],
+            [printer.move, [0, 12]],
+            [printer.dot, [0, 12]]
         ]
     },
     S() {
         return [
-            [printer.dot, 1],
-            [printer.move, 4],
-            [printer.dot, 4],
-            [printer.move, 7],
-            [printer.dot, 7]
+            [printer.dot, [0, 0]],
+            [printer.move, [0, 12]],
+            [printer.dot, [0, 12]],
+            [printer.move, [0, 24]],
+            [printer.dot, [0, 24]]
         ]
     },
-    '='() { return  [[printer.line, 3]] },
-    '-'() { return  [[printer.moveLine, 4, 6]] },
-    _() { return    [[printer.moveLine, 7, 9]] },
+    '='() { return  [[printer.line, [24, 0]]] },
+    '-'() { return  [[printer.moveLine, [0, 12], [24, 12]]] },
+    _() { return    [[printer.moveLine, [0, 24], [24, 24]]] },
+    // working
     direction: 'left-to-right',
+    shortenEI: true,
     tags: {
         short: ['a', 'e', 'i', 'n', 'r', 's', 't', 
         'ee', 'ii',
@@ -972,186 +1060,205 @@ const io = {
     // a-n, b-j, c, d-w, e-t, f-q, g-u, h, i-m, k-r, l-y, o-s, p-x, v, z
     n() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]]
         ] 
     },
     j() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 2],
-            [printer.curve, 6, 's']
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.curve2, [0, 24], [24, 24]]
         ] 
     },
     c() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3],
-            [printer.line, 4, 2],
-            [printer.line, 4, 3]
+            [printer.moveLine, [24, 0], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.moveLine, [0, 12], [24, 12]],
         ] 
     },
     w() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 2],
-            [printer.line, 7, 2]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     t() {
         return [
-            [printer.line, 1, 2]
+            [printer.line, [24, 0]]
         ]   
     },
     q() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 4, 2],
-            [printer.line, 4, 3],
-            [printer.line, 7, 2]
+            [printer.line, [24, 0]],
+            [printer.move, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     u() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 3],
-            [printer.line, 7, 2]
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ] 
     },
     h() {
         return [
-            [printer.curve, 3, 'q'],
-            [printer.curve, 4, 'j']
+            [printer.move, [24, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.curve2, [24, 24], [0, 24]]
         ]     
     },
     m() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 4, 2]
+            [printer.line, [24, 0]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]    
     },
     b() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3],
-            [printer.curve, 4, 'j']
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]]
         ] 
     },
     r() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 2],
-            [printer.line, 4, 3]
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     y() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3],
-            [printer.line, 4, 2],
-            [printer.line, 7, 2]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]  
     },
     i() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 3]
+            [printer.line, [0, 24]]
         ]   
     },
     a() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 2]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     s() {
         return [
-            [printer.line, 1, 3],
-            [printer.curve, 4, 'j']
+            [printer.line, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]]
         ]   
     },
     x() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3],
-            [printer.line, 4, 3],
-            [printer.line, 7, 2]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     f() {
         return [
-            [printer.curve, 3, 'q'],
-            [printer.line, 4, 2],
-            [printer.line, 4, 3]
+            [printer.move, [24, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     k() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3],
-            [printer.line, 4, 2]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     o() {
         return [
-            [printer.line, 1, 2],
-            [printer.curve, 3, 's']
+            [printer.line, [24, 0]],
+            [printer.curve2, [0, 12], [24, 12]],
         ]    
     },
     e() {
         return [
-            [printer.line, 1, 3]
+            [printer.line, [0, 12]]
         ]   
     },
     g() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 4, 2],
-            [printer.line, 4, 3]
+            [printer.line, [24, 0]],
+            [printer.move, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     v() {
         return [
-            [printer.curve, 3, 'q'],
-            [printer.line, 4, 3],
-            [printer.line, 7, 2]
+            [printer.move, [24, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     d() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 1, 3],
-            [printer.line, 4, 3]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]]
         ]   
     },
     p() {
         return [
-            [printer.curve, 1, 'j'],
-            [printer.curve, 6, 'q']
+            [printer.curve2, [24, 12], [0, 12]],
+            [printer.move, [24, 12]],
+            [printer.curve2, [0, 24], [0, 12]]
         ]   
     },
     l() {
         return [
-            [printer.line, 1, 3],
-            [printer.line, 4, 2],
-            [printer.curve, 4, 'j']
+            [printer.line, [0, 12]],
+            [printer.curve2, [24, 24], [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]    
     },
     z() {
         return [
-            [printer.curve, 3, 'q'],
-            [printer.line, 4, 2],
-            [printer.line, 7, 2]
+            [printer.move, [24, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]      
     },
     th() {
         return [
-            [printer.line, 1, 2],
-            [printer.curve, 3, 'q'],
-            [printer.curve, 4, 'j']
+            [printer.line, [24, 0]],
+            [printer.move, [24, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.curve2, [24, 24], [0, 24]]
         ] 
     },
     direction: 'left-to-right',
+       
+    // a-n, b-j, c, d-w, e-t, f-q, g-u, h, i-m, k-r, l-y, o-s, p-x, v, z
+
     tags: {
         // these need to be here for this to work, lol
         supershort: ['t'],
@@ -1160,7 +1267,7 @@ const io = {
         hbConnectors: [],   // change to connectors
         hLigatures: [],     // chage to ligatures
         antishort: [],       // needed if letters added to 'short'
-        antisupershort: [],  // needed if letters added to 'supershort'
+        antisupershort: ['a', 'j', 'w'],  // needed if letters added to 'supershort'
         eSpace: ['n', 'c', 't', 'q', 'h', 'b', 'y', 'x', 'f', 'k', 'o', 'g', 'v', 'd', 'z'],
             // needed if letters added to 'supershort'
     }
@@ -1413,10 +1520,6 @@ const yd = {
     autospace: {
         x: 20, y:0
     },
-    
-
-
-
     tags: {
         // these need to be here for this to work, lol
         supershort: [],
@@ -1425,215 +1528,214 @@ const yd = {
         hbConnectors: [],   // change to connectors
         hLigatures: [], // ? not implemented right...
             // change to ligatures
-        // antishort: [],       // needed if letters added to 'short'
-        // antisupershort: [],  // needed if letters added to 'supershort'
+        antishort: [],       // needed if letters added to 'short'
+        antisupershort: [],  // needed if letters added to 'supershort'
         // eSpace: ['n', 'c', 't', 'q', 'h', 'b', 'y', 'x', 'f', 'k', 'o', 'g', 'v', 'd', 'z'],
             // needed if letters added to 'supershort'
     }
 }
 
-
 var spike = {
     co: {x: 5, y:10},
     a() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]]
         ] 
     },
     b() {
         return [
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.line, 7]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 24]]
         ] 
     },
     c() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4],
-            [printer.move, 6],
-            [printer.line, 4],
-            [printer.line, 7],
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.move, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]]
         ] 
     },
     d() {
         return [
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.move, 7],
-            [printer.line, 9]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     e() {
         return [
-            [printer.line, 3]
+            [printer.line, [24, 0]]
         ]   
     },
     f() {
         return [
-            [printer.line, 3],
-            [printer.move, 6],
-            [printer.line, 4],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.move, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     g() {
         return [
-            [printer.line, 4],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ] 
     },
     h() {
         return [
-            [printer.line, 3],
-            [printer.move, 4],
-            [printer.line, 6],
-            [printer.line, 7]
+            [printer.line, [24, 0]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 24]]
         ]     
     },
     i() {
         return [
-            [printer.line, 3],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.line, [24, 0]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]    
     },
     j() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4],
-            [printer.line, 9]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]]
         ] 
     },
     k() {
         return [
-            [printer.line, 7],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     l() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.move, 7],
-            [printer.line, 9]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]  
     },
     m() {
         return [
-            [printer.line, 7]
+            [printer.line, [0, 24]]
         ]   
     },
     n() {
         return [
-            [printer.line, 4],
-            [printer.line, 6]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     o() {
         return [
-            [printer.line, 4],
-            [printer.line, 9]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]]
         ]   
     },
     p() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]   
     },
     q() {
         return [
-            [printer.move, 3],
-            [printer.line, 4],
-            [printer.line, 7],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     r() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4],
-            [printer.line, 6]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     s() {
         return [
-            [printer.line, 3],
-            [printer.line, 4]
+            [printer.line, [24, 0]],
+            [printer.line, [0, 12]]
         ]    
     },
     t() {
         return [
-            [printer.line, 4]
+            [printer.line, [0, 12]]
         ]   
     },
     u() {
         return [
-            [printer.line, 3],
-            [printer.move, 6],
-            [printer.line, 4],
-            [printer.line, 7]
+            [printer.line, [24, 0]],
+            [printer.move, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     v() {
         return [
-            [printer.line, 3],
-            [printer.line, 4],
-            [printer.line, 7]
+            [printer.line, [24, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     w() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]]
         ]   
     },
     x() {
         return [
-            [printer.line, 6],
-            [printer.line, 7]
+            [printer.line, [24, 12]],
+            [printer.line, [0, 24]]
         ]   
     },
     y() {
         return [
-            [printer.line, 4],
-            [printer.line, 9],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]    
     },
     z() {
         return [
-            [printer.line, 3],
-            [printer.move, 6],
-            [printer.line, 4],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.move, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]]
         ]     
     },
     1() { return this.e() },
     2() { return this.i() },
     3() {
         return [
-            [printer.line, 3],
-            [printer.move, 4],
-            [printer.line, 6],
-            [printer.move, 7],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]  
     },
     4() { return this.t() },
@@ -1645,100 +1747,100 @@ var spike = {
     0() { return this.o() },
     ch() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.move, 4],
-            [printer.line, 6],
-            [printer.line, 8]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 24]]
         ]
     },
     gh() {
         return [
-            [printer.line, 7],
-            [printer.line, 8],
-            [printer.line, 6],
-            [printer.line, 5],
-            [printer.move, 2],
-            [printer.line, 3]
+            [printer.line, [0, 24]],
+            [printer.line, [12, 24]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 12]],
+            [printer.move, [12, 0]],
+            [printer.line, [24, 0]]
         ]  
     },
     kh() {
         return [
-            [printer.line, 7],
-            [printer.move, 2],
-            [printer.line, 3],
-            [printer.move, 4],
-            [printer.line, 6],
-            [printer.line, 8]
+            [printer.line, [0, 24]],
+            [printer.move, [12, 0]],
+            [printer.line, [24, 0]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 24]]
         ]   
     },
     ph() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.line, 8],
-            [printer.line, 6],
-            [printer.line, 5]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [12, 24]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 12]]
         ]  
     },
     sh() {
         return [
-            [printer.line, 3],
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.line, 7],
+            [printer.line, [24, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 24]],
         ]  
     },
     th() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.line, 7],
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 24]],
         ] 
     },
     wh() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.move, 5],
-            [printer.line, 6],
-            [printer.line, 8]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.move, [12, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 24]]
         ]  
     },
     zh() {
         return [
-            [printer.line, 1, 2],
-            [printer.line, 4, 2],
-            [printer.curve, 4, 'zh'],
-            [printer.curve, 6, 'ch'],
+            [printer.line, [24, 0]],
+            [printer.line, [24, 12]],
+            [printer.curve, [0, 12], 'zh'],
+            [printer.curve, [24, 12], 'ch'],
         ]  
     },
     E() {
         return [
-            [printer.square, 1],
+            [printer.square, [0, 0]],
         ]
     },
     I() {
         return [
-            [printer.square, 1],
-            [printer.square, 4]
+            [printer.square, [0, 0]],
+            [printer.square, [0, 12]]
         ]
     },
     S() {
         return [
-            [printer.square, 1],
-            [printer.square, 4],
-            [printer.square, 7]
+            [printer.square, [0, 0]],
+            [printer.square, [0, 12]],
+            [printer.square, [0, 24]]
         ]
     },
-    '='() { return  [[printer.line, 1, 2]] },
-    '-'() { return  [[printer.line, 4, 2]] },
-    _() { return    [[printer.line, 7, 2]] },
+    '='() { return  [[printer.line, [24, 0]]] },
+    '-'() { return  [[printer.line, [24, 12]]] },
+    _() { return    [[printer.line, [24, 24]]] },
     direction: 'left-to-right',
     autospace: {x:-10, y:0},
     tags: {
@@ -1768,236 +1870,236 @@ var spike = {
 var en = {
     a() {
         return [
-            [printer.move, 7],
-            [printer.line, 2],
-            [printer.line, 9],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [0, 24]],
+            [printer.line, [12, 0]],
+            [printer.line, [24, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ] 
     },
     b() {
         return [
-            [printer.line, 7],
-            [printer.line, 6],
-            [printer.line, 4],
-            [printer.line, 2],
-            [printer.line, 1],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [12, 0]],
+            [printer.line, [0, 0]],
         ] 
     },
     c() {
         return [
-            [printer.move, 3],
-            [printer.line, 4],
-            [printer.line, 9],
+            [printer.move, [24, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]],
         ] 
     },
     d() {
         return [
-            [printer.line, 6],
-            [printer.line, 7],
-            [printer.line, 1]
+            [printer.line, [24, 12]],
+            [printer.line, [0, 24]],
+            [printer.line, [0, 0]]
         ]   
     },
     e() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.line, 9],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     f() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     g() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.line, 9],
-            [printer.line, 6],
-            [printer.line, 5]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 12]]
         ] 
     },
     h() {
         return [
-            [printer.line, 7],
-            [printer.move, 3],
-            [printer.line, 9],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.line, [0, 24]],
+            [printer.move, [24, 0]],
+            [printer.line, [24, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]     
     },
     i() {
         return [
-            [printer.line, 3],
-            [printer.move, 2],
-            [printer.line, 8],
-            [printer.move, 7],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.move, [12, 0]],
+            [printer.line, [12, 24]],
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ]    
     },
     j() {
         return [
-            [printer.line, 3],
-            // [printer.move, 2],
-            [printer.line, 9],
-            [printer.line, 7],
-            [printer.line, 4]
+            [printer.line, [24, 0]],
+            // [printer.move, [12, 0]],
+            [printer.line, [24, 24]],
+            [printer.line, [0, 24]],
+            [printer.line, [0, 12]]
         ] 
     },
     k() {
         return [
-            [printer.line, 7],
-            [printer.move, 3],
-            [printer.line, 4],
-            [printer.line, 9]
+            [printer.line, [0, 24]],
+            [printer.move, [24, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]]
         ]   
     },
     l() {
         return [
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]  
     },
     m() {
         return [
-            [printer.move, 7],
-            [printer.line, 1],
-            [printer.line, 5],
-            [printer.line, 3],
-            [printer.line, 9]
+            [printer.move, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [12, 12]],
+            [printer.line, [24, 0]],
+            [printer.line, [24, 24]]
         ]   
     },
     n() {
         return [
-            [printer.move, 7],
-            [printer.line, 1],
-            [printer.line, 9],
-            [printer.line, 3]
+            [printer.move, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [24, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     o() {
         return [
-            [printer.move, 4],
-            [printer.line, 2],
-            [printer.line, 6],
-            [printer.line, 8],
-            [printer.line, 4]
+            [printer.move, [0, 12]],
+            [printer.line, [12, 0]],
+            [printer.line, [24, 12]],
+            [printer.line, [12, 24]],
+            [printer.line, [0, 12]]
         ]   
     },
     p() {
         return [
-            [printer.move, 7],
-            [printer.line, 1],
-            [printer.line, 3],
-            [printer.line, 6],
-            [printer.line, 4]
+            [printer.move, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [24, 0]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 12]]
         ]   
     },
     q() {
         return [
-            [printer.line, 3],
-            [printer.line, 9],
-            [printer.line, 7],
-            [printer.line, 1],
-            [printer.move, 5],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.line, [24, 24]],
+            [printer.line, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.move, [12, 12]],
+            [printer.line, [24, 24]]
         ]   
     },
     r() {
         return [
-            [printer.move, 7],
-            [printer.line, 1],
-            [printer.line, 3],
-            [printer.line, 6],
-            [printer.line, 4],
-            [printer.line, 9]
+            [printer.move, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [24, 0]],
+            [printer.line, [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 24]]
         ]   
     },
     s() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 4],
-            [printer.line, 6],
-            [printer.line, 9],
-            [printer.line, 7]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 12]],
+            [printer.line, [24, 12]],
+            [printer.line, [24, 24]],
+            [printer.line, [0, 24]]
         ]    
     },
     t() {
         return [
-            [printer.line, 3],
-            [printer.move, 2],
-            [printer.line, 8]
+            [printer.line, [24, 0]],
+            [printer.move, [12, 0]],
+            [printer.line, [12, 24]]
         ]   
     },
     u() {
         return [
-            [printer.line, 7],
-            [printer.line, 9],
-            [printer.line, 3]
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     v() {
         return [
-            [printer.line, 8],
-            [printer.line, 3]
+            [printer.line, [12, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     w() {
         return [
-            [printer.line, 7],
-            [printer.line, 5],
-            [printer.line, 9],
-            [printer.line, 3]
+            [printer.line, [0, 24]],
+            [printer.line, [12, 12]],
+            [printer.line, [24, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     x() {
         return [
-            [printer.line, 9],
-            [printer.move, 3],
-            [printer.line, 7]
+            [printer.line, [24, 24]],
+            [printer.move, [24, 0]],
+            [printer.line, [0, 24]]
         ]   
     },
     y() {
         return [
-            [printer.line, 5],
-            [printer.line, 3],
-            [printer.move, 5],
-            [printer.line, 8]
+            [printer.line, [12, 12]],
+            [printer.line, [24, 0]],
+            [printer.move, [12, 12]],
+            [printer.line, [12, 24]]
         ]    
     },
     z() {
         return [
-            [printer.line, 3],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]     
     },
     '-'() { 
         return [
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ] 
     },
     _() { 
         return [
-            [printer.move, 7],
-            [printer.line, 9]
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ] 
     },
     '+'() {
         return [
-            [printer.square, 5]
+            [printer.square, [12, 12]]
         ]
     },
     direction: 'left-to-right',
@@ -2018,318 +2120,259 @@ var en = {
 }
 
 var basic = {
-    // working
     a() {
         return [
-            [printer.move, 7],
-            // [printer.line, 1],
-            // [printer.line, 3],
-            // [printer.line, 9],
-            // [printer.move, 4],
-            // [printer.line, 6]
-            [printer.line, 2],
-            [printer.line, 9],
-            [printer.betterCurve, [3, 8], [9, 8], [6, 8]],
+            [printer.move, [0, 24]],
+            [printer.line, [12, 0]],
+            [printer.line, [24, 24]],
+            [printer.move, [6, 16]],
+            [printer.line, [18, 16]]
         ] 
     },
     b() {
         return [
-            // [printer.line, 3],
-            // [printer.line, 5],
-            // [printer.line, 9],
-            // [printer.line, 7],
-            // [printer.line, 1],
-            // [printer.move, 4],
-            // [printer.line, 5]
-            [printer.line, 2],
-            [printer.betterCurve, [6, 0], [12, 3], [12, 0]],
-            [printer.betterCurve, [12, 3], [6, 6], [12, 6]],
-            [printer.betterCurve, [6, 6], [12, 9], [12, 6]],
-            [printer.betterCurve, [12, 9], [6, 12], [12, 12]],
-            [printer.line, 7],
-            [printer.line, 1],
-            [printer.move, 4],
-            [printer.line, 5],
+            [printer.line, [12, 0]],
+            [printer.curve2, [22, 6], [22, 0]],
+            [printer.curve2, [12, 12], [22, 12]],
+            [printer.line, [0, 12]],
+            [printer.move, [12, 12]],
+            [printer.curve2, [24, 18], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+            [printer.line, [0, 24]],
+            [printer.line, [0, 0]]
 
         ] 
     },
     c() {
         return [
-            // [printer.move, 3],
-            // [printer.line, 1],
-            // [printer.line, 7],
-            // [printer.line, 9]
-
-            [printer.betterCurve, [12, 3], [6, 0], [12, 0]],
-            [printer.betterCurve, [6, 0], [0, 6], [0, 0]],
-            [printer.betterCurve, [0, 6], [6, 12], [0, 12]],
-            [printer.betterCurve, [6, 12], [12, 9], [12, 12]],
-            
+            [printer.move, [24, 6]],
+            [printer.curve2, [12, 0], [22, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.curve2, [12, 24], [0, 24]],
+            [printer.curve2, [24, 18], [22, 24]]
         ] 
     },
     d() {
         return [
-            [printer.line, 2],
-            // [printer.line, 6],
-            // [printer.line, 8],
-            [printer.betterCurve, [6, 0], [12, 6], [12, 0]],
-            [printer.betterCurve, [12, 6], [6, 12], [12, 12]],
-            [printer.line, 7],
-            [printer.line, 1]
+            [printer.line, [12, 0]],
+            [printer.curve2, [24, 12], [24, 0]],
+            [printer.curve2, [12, 24], [24, 24]],
+            [printer.line, [0, 24]],
+            [printer.line, [0, 0]]
         ]   
     },
     e() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.line, 9],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [22, 12]]
         ]   
     },
     f() {
         return [
-            [printer.move, 3],
-            [printer.line, 1],
-            [printer.line, 7],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [24, 0]],
+            [printer.line, [0, 0]],
+            [printer.line, [0, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]   
     },
     g() {
         return [
-            // [printer.move, 3],
-            // [printer.line, 1],
-            // [printer.line, 7],
-            // [printer.line, 9],
-            // [printer.line, 6],
-            // [printer.line, 5]
-            [printer.betterCurve, [12, 3], [6, 0], [12, 0]],
-            [printer.betterCurve, [6, 0], [0, 6], [0, 0]],
-            [printer.betterCurve, [0, 6], [6, 12], [0, 12]],
-            [printer.betterCurve, [6, 12], [12, 6], [12, 12]],
-            [printer.betterLine, [12, 6], [6, 6]],
-            [printer.betterLine, [12, 6], [12, 12]],
+            [printer.move, [24, 6]],
+            [printer.curve2, [12, 0], [22, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.curve2, [12, 24], [0, 24]],
+            [printer.curve2, [24, 13], [24, 24]],
+            [printer.line, [12, 13]],
+            [printer.move, [24, 13]],
+            [printer.line, [24, 24]]
         ] 
     },
     h() {
         return [
-            [printer.line, 7],
-            [printer.move, 3],
-            [printer.line, 9],
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.line, [0, 24]],
+            [printer.move, [24, 0]],
+            [printer.line, [24, 24]],
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ]     
     },
     i() {
         return [
-            [printer.betterLine, [3, 0], [9, 0]],
-            [printer.move, 2],
-            [printer.line, 8],
-            [printer.betterLine, [3, 12], [9, 12]]
+            [printer.move, [6, 0]],
+            [printer.line, [18, 0]],
+            [printer.move, [12, 0]],
+            [printer.line, [12, 24]],
+            [printer.move, [6, 24]],
+            [printer.line, [18, 24]]
         ]    
     },
     j() {
         return [
-            [printer.line, 3],
-            [printer.line, 6],
-            // [printer.line, 8],
-            // [printer.line, 4]         
-            [printer.betterCurve, [12, 6], [6, 12], [12, 12]],
-            [printer.betterCurve, [6, 12], [0, 6], [0, 12]]
-            // [printer.line, 7]
+            [printer.move, [12, 0]],
+            [printer.line, [24, 0]],
+            [printer.line, [24, 12]],   
+            [printer.curve2, [12, 24], [24, 24]],
+            [printer.curve2, [0, 16], [0, 24]]
 
         ] 
     },
     k() {
         return [
-            [printer.line, 7],
-            [printer.move, 3],
-            [printer.line, 4],
-            [printer.line, 9]
+            [printer.line, [0, 24]],
+            [printer.move, [24, 0]],
+            [printer.line, [6, 10]],
+            [printer.curve2, [24, 24], [20, 16]]
         ]   
     },
     l() {
         return [
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]  
     },
     m() {
         return [
-            [printer.move, 7],
-            [printer.line, 1],
-            [printer.line, 5],
-            [printer.line, 3],
-            [printer.line, 9]
+            [printer.move, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [12, 12]],
+            [printer.line, [24, 0]],
+            [printer.line, [24, 24]]
         ]   
     },
     n() {
         return [
-            [printer.move, 7],
-            [printer.line, 1],
-            [printer.line, 9],
-            [printer.line, 3]
+            [printer.move, [0, 24]],
+            [printer.line, [0, 0]],
+            [printer.line, [24, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     o() {
         return [
-            // [printer.line, 3],
-            // [printer.line, 9],
-            // [printer.line, 7],
-            // [printer.line, 1]
-            [printer.move, 2],
-            [printer.betterCurve, [6, 0], [0, 6], [0, 0]],
-            [printer.betterCurve, [0, 6], [6, 12], [0, 12]],
-            [printer.betterCurve, [6, 12], [12, 6], [12, 12]],
-            [printer.betterCurve, [12, 6], [6, 0], [12, 0]]
-
+            [printer.move, [12, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.curve2, [12, 24], [0, 24]],
+            [printer.curve2, [24, 12], [24, 24]],
+            [printer.curve2, [12, 0], [24, 0]]
         ]   
     },
     p() {
         return [
-            // [printer.move, 7],
-            // [printer.line, 1],
-            // [printer.line, 3],
-            // [printer.line, 6],
-            // [printer.line, 4]
-            [printer.line, 2],
-            [printer.betterCurve, [6, 0], [12, 3], [12, 0]],
-            [printer.betterCurve, [12, 3], [6, 6], [12, 6]],
-            [printer.line, 4],
-            [printer.move, 1],
-            [printer.line, 7]
+            [printer.line, [12, 0]],
+            [printer.curve2, [24, 6], [24, 0]],
+            [printer.curve2, [12, 12], [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.move, [0, 0]],
+            [printer.line, [0, 24]]
 
         ]   
     },
     q() {
         return [
-            // [printer.line, 3],
-            // [printer.line, 9],
-            // [printer.line, 7],
-            // [printer.line, 1],
-            // [printer.move, 5],
-            // [printer.line, 9]
-            [printer.move, 2],
-            [printer.betterCurve, [6, 0], [0, 6], [0, 0]],
-            [printer.betterCurve, [0, 6], [6, 12], [0, 12]],
-            [printer.betterCurve, [6, 12], [12, 6], [12, 12]],
-            [printer.betterCurve, [12, 6], [6, 0], [12, 0]],
-            [printer.move, 5],
-            [printer.line, 9]
+            [printer.move, [12, 0]],
+            [printer.curve2, [0, 12], [0, 0]],
+            [printer.curve2, [12, 24], [0, 24]],
+            [printer.curve2, [24, 12], [24, 24]],
+            [printer.curve2, [12, 0], [24, 0]],
+            [printer.move, [16, 18]],
+            [printer.line, [24, 24]]
         ]   
     },
     r() {
         return [
-            // [printer.line, 3],
-            // [printer.line, 5],
-            // [printer.line, 9],
-            // [printer.move, 7],
-            // [printer.line, 1],
-            // [printer.move, 4],
-            // [printer.line, 5]
-            [printer.line, 2],
-            [printer.betterCurve, [6, 0], [12, 3], [12, 0]],
-            [printer.betterCurve, [12, 3], [6, 6], [12, 6]],
-            [printer.line, 4],
-            [printer.line, 9],
-            [printer.move, 1],
-            [printer.line, 7]
+            [printer.line, [12, 0]],
+            [printer.curve2, [24, 6], [24, 0]],
+            [printer.curve2, [12, 12], [24, 12]],
+            [printer.line, [0, 12]],
+            [printer.move, [12, 12]],
+            [printer.curve2, [22, 18], [22, 12]],
+            [printer.curve2, [24, 24], [22, 22]],
+            [printer.move, [0, 0]],
+            [printer.line, [0, 24]]
         ]   
     },
     s() {
         return [
-            // [printer.move, 3],
-            // [printer.line, 1],
-            // [printer.line, 4],
-            // [printer.line, 6],
-            // [printer.line, 9],
-            // [printer.line, 7]
-            [printer.betterCurve, [12, 3], [6, 0], [12, 0]],
-            [printer.betterCurve, [6, 0], [0, 3], [0, 0]],
-            [printer.betterCurve, [0, 3], [6, 6], [0, 6]],
-            [printer.betterCurve, [6, 6], [12, 9], [12, 6]],
-            [printer.betterCurve, [12, 9], [6, 12], [12, 12]],
-            [printer.betterCurve, [6, 12], [0, 9], [0, 12]],
+            [printer.move, [24, 4]],
+            [printer.curve2, [12, 0], [22, 0]],
+            [printer.curve2, [0, 6], [0, 0]],
+            [printer.curve2, [12, 12], [0, 12]],
+            [printer.curve2, [24, 18], [24, 12]],
+            [printer.curve2, [12, 24], [24, 24]],
+            [printer.curve2, [0, 20], [2, 24]]
         ]    
     },
     t() {
         return [
-            [printer.line, 3],
-            [printer.move, 2],
-            [printer.line, 8]
+            [printer.line, [24, 0]],
+            [printer.move, [12, 0]],
+            [printer.line, [12, 24]]
         ]   
     },
     u() {
         return [
-            // [printer.line, 7],
-            // [printer.line, 9],
-            // [printer.line, 3]
-            [printer.line, 4],
-            [printer.betterCurve, [0, 6], [6, 12], [0, 12]],
-            [printer.betterCurve, [6, 12], [12, 6], [12, 12]],
-            [printer.line, 3]
+            [printer.line, [0, 14]],
+            [printer.curve2, [12, 24], [0, 24]],
+            [printer.curve2, [24, 14], [24, 24]],
+            [printer.line, [24, 0]],
         ]   
     },
     v() {
         return [
-            [printer.line, 8],
-            [printer.line, 3]
+            [printer.line, [12, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     w() {
         return [
-            // [printer.line, 7],
-            // [printer.line, 5],
-            // [printer.line, 9],
-            // [printer.line, 3]
-            [printer.line, 4],
-            [printer.betterCurve, [0, 6], [3, 12], [0, 12]],
-            [printer.betterCurve, [3, 12], [6, 9], [6, 12]],
-            [printer.line, 5],
-            [printer.betterCurve, [6, 6], [9, 12], [6, 12]],
-            [printer.betterCurve, [9, 12], [12, 9], [12, 12]],
-            [printer.line, 3]
+            [printer.line, [4, 24]],
+            [printer.line, [12, 12]],
+            [printer.line, [20, 24]],
+            [printer.line, [24, 0]]
         ]   
     },
     x() {
         return [
-            [printer.line, 9],
-            [printer.move, 3],
-            [printer.line, 7]
+            [printer.line, [24, 24]],
+            [printer.move, [24, 0]],
+            [printer.line, [0, 24]]
         ]   
     },
     y() {
         return [
-            [printer.line, 5],
-            [printer.line, 3],
-            [printer.move, 5],
-            [printer.line, 8]
+            [printer.line, [12, 12]],
+            [printer.line, [24, 0]],
+            [printer.move, [12, 12]],
+            [printer.line, [12, 24]]
         ]    
     },
     z() {
         return [
-            [printer.line, 3],
-            [printer.line, 7],
-            [printer.line, 9]
+            [printer.line, [24, 0]],
+            [printer.line, [0, 24]],
+            [printer.line, [24, 24]]
         ]     
     },
     '-'() { 
         return [
-            [printer.move, 4],
-            [printer.line, 6]
+            [printer.move, [0, 12]],
+            [printer.line, [24, 12]]
         ] 
     },
     _() { 
         return [
-            [printer.move, 7],
-            [printer.line, 9]
+            [printer.move, [0, 24]],
+            [printer.line, [24, 24]]
         ] 
     },
     '+'() {
         return [
-            [printer.square, 5]
+            [printer.square, [12, 12]]
         ]
     },
     direction: 'left-to-right',
@@ -2349,6 +2392,14 @@ var basic = {
     }
 }
 
+const dix = {
+    main: main,
+    io: io,
+    yd: yd,
+    en: en,
+    spike: spike,
+    basic: basic
+}
 
 
 
